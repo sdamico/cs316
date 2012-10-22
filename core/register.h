@@ -1,4 +1,4 @@
-#ifndef CS316_CORE_H_
+#ifndef CS316_CORE_REGISTER_H_
 
 #include <cstdint>
 
@@ -11,11 +11,11 @@ class Register {
   void Reset();
   void SetInput(uint32_t index, uint32_t data);  
   void SetInput(uint32_t index, uint32_t data, uint32_t mask);
-  void GetOutput(uint32_t index);
+  void GetOutput(uint32_t index, uint32_t &data);
 
  private:
   uint32_t *d_values_;
   uint32_t *q_values_;
 };
 
-#endif // CS316_CORE_H_
+#endif // CS316_CORE_REGISTER_H_
