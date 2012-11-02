@@ -58,21 +58,20 @@ int main (int argc, char* argv[]) {
   ifstream ref_seq_file(argv[1]);
   char* ref_seq_length_str = new char[256];
   ref_seq_file.getline(ref_seq_length_str, 256);
-  int ref_seq_length = atoi(ref_seq_length_str);
+  unsigned int ref_seq_length = (unsigned int) atol(ref_seq_length_str);
   
   // Generate linked-list-based position lookup table
   cout << "Computing linked-list-based position lookup table" << endl;
-  int seed_length = atoi(argv[2]);
-  int num_seeds = 1 << (2 * seed_length);
-  cout << seed_length << '\t' << num_seeds << endl;
+  unsigned int seed_length = (unsigned int) atoi(argv[2]);
+  unsigned int num_seeds = 1 << (2 * seed_length);
   list<int>* seed2index = new list<int>[num_seeds];
   
   string cur_seed = " ";
-  for (int i = 0; i < seed_length - 1; i++) {
+  for (unsigned int i = 0; i < seed_length - 1; i++) {
     cur_seed += ref_seq_file.get();
   }
   
-  int cur_index = 0;
+  unsigned int cur_index = 0;
   while (ref_seq_file.good()) {
     char c = ref_seq_file.get();
     if (c == 'A' || c == 'C' || c == 'G' || c == 'T') {
@@ -92,7 +91,7 @@ int main (int argc, char* argv[]) {
   
   int start = 0, size = 0;
   int index = 0;
-  for (int i = 0; i < num_seeds; i++) {
+  for (unsigned int i = 0; i < num_seeds; i++) {
     while (!seed2index[i].empty()) {
       position_table[index] = seed2index[i].front();
       seed2index[i].pop_front();
