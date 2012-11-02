@@ -1,8 +1,9 @@
 #ifndef CS316_CORE_REGISTER_H_
 #define CS316_CORE_REGISTER_H_
 #include <cstdint>
+#include "sequential.h"
 
-class Register {
+class Register : Public Sequential {
  public:
   Register();
   Register(uint32_t size);
