@@ -1,7 +1,12 @@
 #ifndef _table_io_h
 #define _table_io_h
 
-void ReadIntervalTable (char* filename, int* interval_table);
-void ReadPositionTable (char* filename, int* position_table);
+struct table {
+  unsigned int  length;
+  unsigned int* ptr;
+};
+
+void ReadIntervalTable (char* filename, table* interval_table);
+void ReadPositionTable (char* filename, table* position_table);
 
 #endif

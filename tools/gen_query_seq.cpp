@@ -60,16 +60,7 @@ int main (int argc, char* argv[]) {
       quad = ref_seq_file.get();
       char_num = 0;
     }
-    unsigned char nucleotide = (quad & (3 << (3-char_num)*2)) >> (3-char_num)*2;
-    
-    switch (nucleotide) {
-      case 0 : cout << 'A'; break;
-      case 1 : cout << 'C'; break;
-      case 2 : cout << 'G'; break;
-      case 3 : cout << 'T'; break;
-      default : cout << 'X'; break;
-    }
-    
+    unsigned char nucleotide = (quad & (3 << (3-char_num)*2)) >> (3-char_num)*2;    
     
     query->push_back(nucleotide);
     if (query->size() > query_length) {

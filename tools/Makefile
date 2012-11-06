@@ -1,6 +1,5 @@
 CC=g++
 CFLAGS = -g -Wall
-#arm-linux-gnueabihf-gcc
 
 all: gen_query_seq gen_ref_seq gen_tables 
 

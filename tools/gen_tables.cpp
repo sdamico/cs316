@@ -85,7 +85,8 @@ int main (int argc, char* argv[]) {
   
   // Generate interval table and position table
   cout << "Computing interval and position tables" << endl;
-  int* interval_table = new int[num_seeds];
+  unsigned int interval_table_size = num_seeds + 1;
+  int* interval_table = new int[interval_table_size];
   int* position_table = new int[ref_seq_length - seed_length + 1];
   
   int start = 0, size = 0;
@@ -101,6 +102,7 @@ int main (int argc, char* argv[]) {
     start += size;
     size = 0;
   }
+  interval_table[num_seeds] = ref_seq_length - seed_length + 1;
   assert(index == ref_seq_length - seed_length + 1);
   
   // Write tables to disk  
@@ -115,7 +117,7 @@ int main (int argc, char* argv[]) {
   cout << "Writing interval table to disk" << endl;
   ofstream interval_table_file;
   interval_table_file.open(argv[3]);
-  interval_table_file.write((char *)(&num_seeds), sizeof(unsigned int));
+  interval_table_file.write((char *)(&interval_table_size), sizeof(unsigned int));
   interval_table_file.write((char *)interval_table, num_seeds * sizeof(int));
   interval_table_file.close();
 
@@ -143,16 +145,16 @@ int main (int argc, char* argv[]) {
     cout << "Writing ASCII interval table to disk" << endl;
     ifstream interval_table_file_read;
     interval_table_file_read.open(argv[3]);
-    interval_table_file_read.read((char *)(&num_seeds), sizeof(unsigned int));
+    interval_table_file_read.read((char *)(&interval_table_size), sizeof(unsigned int));
     
-    int* interval_table_read = new int[num_seeds];    
-    interval_table_file_read.read((char *)interval_table_read, num_seeds * sizeof(int));
+    int* interval_table_read = new int[interval_table_size];    
+    interval_table_file_read.read((char *)interval_table_read, interval_table_size * sizeof(int));
     interval_table_file.close();
     
     ofstream interval_table_ascii_file;
     interval_table_ascii_file.open(argv[5]);
-    interval_table_ascii_file << num_seeds << endl;
-    for (int i = 0; i < num_seeds; i++) {
+    interval_table_ascii_file << interval_table_size << endl;
+    for (int i = 0; i < interval_table_size; i++) {
       interval_table_ascii_file << interval_table_read[i] << ' ';
     }
     interval_table_ascii_file.close();
