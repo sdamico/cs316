@@ -13,8 +13,6 @@
  * with a 2-character seed length is [0 0 1 1 2 2 2 4 4 6 6 6 6 6 7 7].
  */
 
-#define DEBUG
-
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
@@ -30,56 +28,57 @@ using namespace std;
  * G : 10b
  * T : 11b
  */
-int seq2int(string seq) {
-  int seq_int = 0;
+unsigned int seq2int(list<unsigned char>* seq) {
+  unsigned int seq_int = 0;
   
-  string::iterator it;
-  for (it = seq.begin(); it < seq.end(); it++) {
+  list<unsigned char>::iterator it;
+  for (it = seq->begin(); it != seq->end(); it++) {
     seq_int <<= 2;
-    switch(*it) {
-      case 'A' : seq_int += 0; break;
-      case 'C' : seq_int += 1; break;
-      case 'G' : seq_int += 2; break;
-      case 'T' : seq_int += 3; break;
-      default  : break;
-    }
+    seq_int += *it;
   }
   
   return seq_int;
 }
 
 int main (int argc, char* argv[]) {
-  if (argc < 5) {
-    cout << "Usage: " << argv[0] << " <Ref Seq File> <Seed Length> <Interval Table File> <Position Table File>" << endl;
+  if (argc < 5 || argc == 6) {
+    cout << "Usage: " << argv[0] << " <Ref Seq File> <Seed Length> <Interval Table Filename> <Position Table Filename> [ASCII Interval Table Filename] [ASCII Position Table Filename]" << endl;
     exit(1);
   }
   
   // Get the reference sequence length
-  ifstream ref_seq_file(argv[1]);
-  char* ref_seq_length_str = new char[256];
-  ref_seq_file.getline(ref_seq_length_str, 256);
-  unsigned int ref_seq_length = (unsigned int) atol(ref_seq_length_str);
+  unsigned int ref_seq_length;
+  ifstream ref_seq_file;
+  ref_seq_file.open(argv[1]);
+  ref_seq_file.read((char *)(&ref_seq_length), sizeof(unsigned int));
   
   // Generate linked-list-based position lookup table
   cout << "Computing linked-list-based position lookup table" << endl;
   unsigned int seed_length = (unsigned int) atoi(argv[2]);
   unsigned int num_seeds = 1 << (2 * seed_length);
   list<int>* seed2index = new list<int>[num_seeds];
+  list<unsigned char>* cur_seed = new list<unsigned char>;
   
-  string cur_seed = " ";
-  for (unsigned int i = 0; i < seed_length - 1; i++) {
-    cur_seed += ref_seq_file.get();
-  }
-  
+  unsigned char quad;
+  unsigned int char_num;
   unsigned int cur_index = 0;
-  while (ref_seq_file.good()) {
-    char c = ref_seq_file.get();
-    if (c == 'A' || c == 'C' || c == 'G' || c == 'T') {
-      cur_seed += c;
-      cur_seed.erase(0, 1);
+  for (unsigned int i = 0; i < ref_seq_length; i++) {
+    if (i % 4 == 0) {
+      quad = ref_seq_file.get();
+      char_num = 0;
+    }
+    unsigned char nucleotide = (quad & (3 << (3-char_num)*2)) >> (3-char_num)*2;
+    cur_seed->push_back(nucleotide);
+    
+    if (cur_seed->size() > seed_length) {
+      cur_seed->pop_front();
+    }
+    if (cur_seed->size() == seed_length) {
       seed2index[seq2int(cur_seed)].push_back(cur_index);
       cur_index++;
     }
+    
+    char_num++;
   }
   assert(cur_index == ref_seq_length - seed_length + 1);
   ref_seq_file.close();
@@ -108,37 +107,54 @@ int main (int argc, char* argv[]) {
   cout << "Writing position table to disk" << endl;
   ofstream position_table_file;
   position_table_file.open(argv[4]);
+  position_table_file.write((char *)(&ref_seq_length), sizeof(unsigned int));
+  position_table_file.write((char *)(&seed_length), sizeof(unsigned int));
   position_table_file.write((char *)position_table, (ref_seq_length - seed_length + 1) * sizeof(int));
   position_table_file.close();
   
   cout << "Writing interval table to disk" << endl;
   ofstream interval_table_file;
   interval_table_file.open(argv[3]);
+  interval_table_file.write((char *)(&num_seeds), sizeof(unsigned int));
   interval_table_file.write((char *)interval_table, num_seeds * sizeof(int));
   interval_table_file.close();
 
-#ifdef DEBUG
-  int* position_table_test = new int[ref_seq_length - seed_length + 1];
-  int* interval_table_test = new int[num_seeds];
-  
-  ifstream position_table_file_test;
-  position_table_file_test.open(argv[4]);
-  position_table_file_test.read((char *)position_table_test, (ref_seq_length - seed_length + 1) * sizeof(int));
-  position_table_file_test.close();
-  
-  ifstream interval_table_file_test;
-  interval_table_file_test.open(argv[3]);
-  interval_table_file_test.read((char *)interval_table_test, num_seeds * sizeof(int));
-  interval_table_file.close();
-  
-  for (int i = 0; i < ref_seq_length - seed_length + 1; i++) {
-    assert(position_table_test[i] == position_table[i]);
+  if (argc == 7) {
+    cout << "Writing ASCII position table to disk" << endl;
+    ifstream position_table_file_read;
+    position_table_file_read.open(argv[4]);
+    position_table_file_read.read((char *)(&ref_seq_length), sizeof(unsigned int));
+    position_table_file_read.read((char *)(&seed_length), sizeof(unsigned int));
+    num_seeds = 1 << (2 * seed_length);
+    
+    int* position_table_read = new int[ref_seq_length - seed_length + 1];
+    position_table_file_read.read((char *)position_table_read, (ref_seq_length - seed_length + 1) * sizeof(int));
+    position_table_file_read.close();
+    
+    ofstream position_table_ascii_file;
+    position_table_ascii_file.open(argv[6]);
+    position_table_ascii_file << ref_seq_length << endl;
+    position_table_ascii_file << seed_length << endl;
+    for (int i = 0; i < ref_seq_length - seed_length + 1; i++) {
+      position_table_ascii_file << position_table_read[i] << ' ';
+    }
+    position_table_ascii_file.close();
+    
+    cout << "Writing ASCII interval table to disk" << endl;
+    ifstream interval_table_file_read;
+    interval_table_file_read.open(argv[3]);
+    interval_table_file_read.read((char *)(&num_seeds), sizeof(unsigned int));
+    
+    int* interval_table_read = new int[num_seeds];    
+    interval_table_file_read.read((char *)interval_table_read, num_seeds * sizeof(int));
+    interval_table_file.close();
+    
+    ofstream interval_table_ascii_file;
+    interval_table_ascii_file.open(argv[5]);
+    interval_table_ascii_file << num_seeds << endl;
+    for (int i = 0; i < num_seeds; i++) {
+      interval_table_ascii_file << interval_table_read[i] << ' ';
+    }
+    interval_table_ascii_file.close();
   }
-  
-  for (int i = 0; i < num_seeds; i++) {
-    assert(interval_table_test[i] == interval_table[i]);
-  }
-  
-  cout << "File verification complete" << endl;
-#endif
 }
