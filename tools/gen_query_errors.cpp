@@ -1,0 +1,1 @@
+/* Reads in a query sequence file, introduces SNP
