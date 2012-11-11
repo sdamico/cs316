@@ -10,7 +10,7 @@ class Sequential
     cycle_count_ = 0;
   }
   virtual ~Sequential() = NULL;
-  void NextClockCycle() {
+  virtual void NextClockCycle() {
     cycle_count_++;
   }
   uint64_t cycle_count() {
