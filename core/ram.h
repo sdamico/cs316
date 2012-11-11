@@ -21,7 +21,7 @@ class Ram : public Sequential {
   void Reset();
   void Write(uint64_t address, uint64_t data);  
   void ReadRequest(uint64_t address);
-  bool read_ready();
+  bool read_valid();
   uint64_t read_data();
  private:
   std::queue<RamRequest> read_queue_;

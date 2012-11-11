@@ -21,7 +21,7 @@ void Ram::NextClockCycle() {
     if((read_queue_.front().age+read_latency_) <= cycle_count()) {
       RamRequest ram_req = read_queue_.pop();
       // TODO(sdamico): make this safe?
-      read_ready_ = true;
+      read_valid_ = true;
       read_data_ = data_[ram_req.address];
     }
   }
@@ -60,13 +60,13 @@ void Ram::ReadRequest(uint64_t address)
   read_queue_.push(ram_req);
 }
 
-uint64_t Ram::read_ready()
+uint64_t Ram::read_valid()
 {
-  return read_ready_;
+  return read_valid_;
 }
 
 uint64_t Ram::read_data()
 {
-  read_ready_ = false;
+  read_valid_ = false;
   return read_data_;  
 }
