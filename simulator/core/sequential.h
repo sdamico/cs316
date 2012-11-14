@@ -10,6 +10,7 @@ class Sequential
     cycle_count_ = 0;
   }
   virtual ~Sequential(){};  // (Albert): Changed from pure virtual to empty virtual
+  virtual void NextClockCycle() {
     cycle_count_++;
   }
   uint64_t cycle_count() {
