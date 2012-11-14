@@ -1,3 +1,5 @@
+// TODO(Albert): Complete implementation
+
 #ifndef CS316_CORE_REGISTER_H_
 #define CS316_CORE_REGISTER_H_
 #include <cstdint>
