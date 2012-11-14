@@ -120,8 +120,6 @@ void Fifo<T>::NextClockCycle() {
     data_.pop();
     read_requested_ = false;
   }
-  
-  Sequential::NextClockCycle();
 }
 
 template <class T>
