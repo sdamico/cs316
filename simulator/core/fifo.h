@@ -155,10 +155,11 @@ void Fifo<T>::NextClockCycle() {
   
   if (read_requested_) {
     data_.pop();
-    if (!IsEmpty()) {
-      read_data_ = data_.front();
-    }
     read_requested_ = false;
+  }
+  
+  if (!IsEmpty()) {
+    read_data_ = data_.front();
   }
 }
 

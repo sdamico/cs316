@@ -8,11 +8,10 @@
 #define RAM_ADDRESS_WIDTH 5
 #define RAM_LATENCY 2
 
-int main (int argc, char** argv) {
-  RamModule<int> rm(NUM_RAMS, NUM_PORTS, RAM_ADDRESS_WIDTH, RAM_LATENCY);
-  Ram<int>** rams = rm.GetRams();
+// Helper function to preload RAMs with incrementing values
+void preload (RamModule<int>* rm) {
+  Ram<int>** rams = rm->GetRams();
   
-  // Preload RAMs with incrementing values
   for (int i = 0; i < NUM_RAMS; i++) {
     for (int j = 0; j < (int) pow(2, RAM_ADDRESS_WIDTH); j++) {
       rams[i]->WriteRequest(j, (i << RAM_ADDRESS_WIDTH) + j);
@@ -20,6 +19,14 @@ int main (int argc, char** argv) {
       rams[i]->NextClockCycle();
     }
   }
+}
+
+int main (int argc, char** argv) {
+  RamModule<int> rm(NUM_RAMS, NUM_PORTS, RAM_ADDRESS_WIDTH, RAM_LATENCY);
+  
+  // Reset and preload RAM module
+  rm.Reset();
+  preload(&rm);
   
   // Check initial state
   for (int i = 0; i < NUM_PORTS; i++) {
@@ -27,7 +34,7 @@ int main (int argc, char** argv) {
     assert(rm.ReadReady(i) == false);
   }
   
-  // Multi-port simultaneous read to separate banks
+  // Multi-port simultaneous read to separate banks test
   for (int i = 0; i < NUM_PORTS; i++) {
     rm.ReadRequest(i << RAM_ADDRESS_WIDTH, i);
   }
@@ -45,11 +52,96 @@ int main (int argc, char** argv) {
   }
   rm.NextClockCycle();
   for (int i = 0; i < NUM_PORTS; i++) {
-    std::cout<<rm.ReadReady(i) << std::endl;
     assert(rm.ReadReady(i));
-    assert(rm.ReadData(i) == i);
+    assert(rm.ReadData(i) == (i << RAM_ADDRESS_WIDTH));
   }
 
+  // Two ports read conflict test
+  rm.Reset();
+  preload(&rm);
+  rm.ReadRequest(0, 0);
+  rm.ReadRequest(1, 1);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == false);
+  assert(rm.ReadReady(1) == false);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == false);
+  assert(rm.ReadReady(1) == false);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == false);
+  assert(rm.ReadReady(1) == false);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == true);
+  assert(rm.ReadReady(1) == false);
+  assert(rm.ReadData(0) == 0);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == false);
+  assert(rm.ReadReady(1) == true);
+  assert(rm.ReadData(1) == 1);
+  
+  // Non-starvation test
+  rm.Reset();
+  preload(&rm);
+  rm.ReadRequest(0, 0);
+  rm.ReadRequest(1, 1);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == false);
+  assert(rm.ReadReady(1) == false);
+  rm.ReadRequest(0, 0);
+  rm.ReadRequest(2, 2);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == false);
+  assert(rm.ReadReady(1) == false);
+  assert(rm.ReadReady(2) == false);
+  rm.ReadRequest(0, 0);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == false);
+  assert(rm.ReadReady(1) == false);
+  assert(rm.ReadReady(2) == false);
+  rm.ReadRequest(0, 0);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == true);
+  assert(rm.ReadReady(1) == false);
+  assert(rm.ReadReady(2) == false);
+  assert(rm.ReadData(0) == 0);
+  rm.ReadRequest(0, 0);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == false);
+  assert(rm.ReadReady(1) == true);
+  assert(rm.ReadReady(2) == false);
+  assert(rm.ReadData(1) == 1);
+  rm.ReadRequest(0, 0);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == false);
+  assert(rm.ReadReady(1) == false);
+  assert(rm.ReadReady(2) == true);
+  assert(rm.ReadData(2) == 2);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == true);
+  assert(rm.ReadReady(1) == false);
+  assert(rm.ReadReady(2) == false);
+  assert(rm.ReadData(0) == 0);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == true);
+  assert(rm.ReadReady(1) == false);
+  assert(rm.ReadReady(2) == false);
+  assert(rm.ReadData(0) == 0);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == true);
+  assert(rm.ReadReady(1) == false);
+  assert(rm.ReadReady(2) == false);
+  assert(rm.ReadData(0) == 0);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == true);
+  assert(rm.ReadReady(1) == false);
+  assert(rm.ReadReady(2) == false);
+  assert(rm.ReadData(0) == 0);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == true);
+  assert(rm.ReadReady(1) == false);
+  assert(rm.ReadReady(2) == false);
+  assert(rm.ReadData(0) == 0);
+  rm.NextClockCycle();
   
   std::cout << "RAM Module tests complete!" << std::endl;
   return 0;

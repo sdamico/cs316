@@ -49,11 +49,13 @@ class RamModule : public Sequential {
   // Obtains the RAM chip address from the passed address.
   uint64_t GetRamAddress(uint64_t address);
   
+  // RAM Module setup parameters
   uint64_t num_rams_;
   uint64_t num_ports_;
   uint64_t ram_address_width_;
   uint8_t ram_latency_;
   
+  // RAM instantiations
   Ram<T>** rams_;
   
   // FIFOs that hold request info for in-flight requests in each RAM. Used to
@@ -69,11 +71,13 @@ class RamModule : public Sequential {
   // but not continuously.
   Fifo<RamModuleRequest>** port_input_fifos_;
   
+  // Read data ready flags for each port
   bool* read_ready_;
   
+  // Read data for each port
   T* read_data_;
   
-  // Port round-robin counter for scheduling read requests into the RAMs
+  // Port round-robin counters for scheduling read requests into the RAMs
   uint64_t* port_counters_;
 };
 
@@ -142,7 +146,6 @@ void RamModule<T>::ReadRequest(uint64_t address, uint64_t port_num) {
   RamModuleRequest req;
   req.address = address;
   req.port_num = port_num;
-  std::cout << "Received request to read address " << address << " from port " << port_num << std::endl;
   port_input_fifos_[port_num]->WriteRequest(req);
 }
 
@@ -177,8 +180,7 @@ void RamModule<T>::NextClockCycle() {
       RamModuleRequest req = port_input_fifos_[cur_port]->read_data();
       uint64_t ram_id = GetRamID(req.address);
       uint64_t ram_address = GetRamAddress(req.address);
-      if (!port_input_fifos_[cur_port]->IsEmpty() && ram_id == i) {
-        std::cout << "Dispatching " << cur_port << " to RAM " << i << " " << num_ports_ << std::endl;
+      if (!(port_input_fifos_[cur_port]->IsEmpty()) && ram_id == i) {
         rams_[i]->ReadRequest(ram_address);
         ram_inflight_request_fifos_[i]->WriteRequest(req);
         port_input_fifos_[cur_port]->ReadRequest();

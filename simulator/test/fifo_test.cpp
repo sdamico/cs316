@@ -9,8 +9,18 @@ int main (int argc, char** argv) {
   Fifo<int> f(FIFO_LENGTH, FIFO_ALMOST_FULL_LENGTH);
   
   // Check initial state
-  assert(f.IsEmpty() == true && f.IsFull() == false &&
-         f.IsAlmostFull() == false);
+  assert(f.IsEmpty() == true);
+  assert(f.IsFull() == false);
+  assert(f.IsAlmostFull() == false);
+  
+  // Write and Read test
+  f.WriteRequest((int) 0xDEADBEEF);
+  f.NextClockCycle();
+  assert(f.IsEmpty() == false);
+  assert(f.read_data() == (int) 0xDEADBEEF);
+  f.ReadRequest();
+  f.NextClockCycle();
+  assert(f.IsEmpty() == true);
   
   // Fill and flush test
   for (int i = 0; i < FIFO_LENGTH; i++) {
