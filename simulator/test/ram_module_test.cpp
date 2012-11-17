@@ -52,7 +52,7 @@ int main (int argc, char** argv) {
   }
   rm.NextClockCycle();
   for (int i = 0; i < NUM_PORTS; i++) {
-    assert(rm.ReadReady(i));
+    assert(rm.ReadReady(i) == true);
     assert(rm.ReadData(i) == (i << RAM_ADDRESS_WIDTH));
   }
 
@@ -78,6 +78,7 @@ int main (int argc, char** argv) {
   assert(rm.ReadReady(0) == false);
   assert(rm.ReadReady(1) == true);
   assert(rm.ReadData(1) == 1);
+  rm.NextClockCycle();
   
   // Non-starvation test
   rm.Reset();
@@ -141,7 +142,28 @@ int main (int argc, char** argv) {
   assert(rm.ReadReady(1) == false);
   assert(rm.ReadReady(2) == false);
   assert(rm.ReadData(0) == 0);
+
+  // Write then read test
+  rm.Reset();
+  preload(&rm);
+  rm.ReadRequest(0, 0);
   rm.NextClockCycle();
+  rm.WriteRequest(0, 0, (int) 0xDEADBEEF);
+  assert(rm.ReadReady(0) == false);
+  rm.NextClockCycle();
+  rm.ReadRequest(0, 0);
+  assert(rm.ReadReady(0) == false);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == false);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == true);
+  assert(rm.ReadData(0) == 0);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == false);
+  rm.NextClockCycle();
+  assert(rm.ReadReady(0) == true);
+  assert(rm.ReadData(0) == (int) 0xDEADBEEF);
+
   
   std::cout << "RAM Module tests complete!" << std::endl;
   return 0;

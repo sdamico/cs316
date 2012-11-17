@@ -12,7 +12,7 @@ template <typename T>
 struct RamRequest {
   uint64_t address;
   T data;
-  uint8_t age;
+  uint64_t age;
 };
 
 template <typename T>
@@ -89,6 +89,7 @@ void Ram<T>::Reset() {
   while(!write_queue_.empty()) {
     write_queue_.pop();
   }
+  read_ready_ = false;
 }
 
 template <typename T>

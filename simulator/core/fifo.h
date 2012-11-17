@@ -1,14 +1,16 @@
-// File Name            : fifo.h
-// Description          : FIFO hardware simulation class definitions
-// Table of Contents    : Fifo class declaration
-//                        Fifo::Fifo()           - Constructor 
-//                        Fifo::~Fifo()          - Destructor
-//                        Fifo::IsFull()         - Check if Fifo is full
-//                        Fifo::IsEmpty()        - Check if Fifo is empty
-//                        Fifo::WriteRequest()   - Request to write data to Fifo
-//                        Fifo::ReadRequest()    - Request to read data from Fifo
-//                        Fifo::NextClockCycle() - Advance to the next clock cycle
-// Revision History     :
+// File Name         : fifo.h
+// Description       : FIFO hardware simulation class definitions
+// Table of Contents : Fifo class declaration
+//                     Fifo::Fifo()           - Constructor
+//                     Fifo::~Fifo()          - Destructor
+//                     Fifo::IsFull()         - Check if FIFO is full
+//                     Fifo::IsAlmostFull()   - Check if FIFO is almost full
+//                     Fifo::IsEmpty()        - Check if FIFO is empty
+//                     Fifo::WriteRequest()   - Request to write data to FIFO
+//                     Fifo::ReadRequest()    - Request to read data from FIFO
+//                     Fifo::NextClockCycle() - Advance to the next clock cycle
+//                     Fifo::Reset()          - Reset FIFO state
+// Revision History  :
 //     Albert Ng      Nov 13 2012     Initial Revision
 //     Albert Ng      Nov 14 2012     Added read_ready and IsAlmostFull()
 
@@ -168,6 +170,7 @@ void Fifo<T>::Reset() {
   while (!data_.empty()) {
     data_.pop();
   }
+
   write_requested_ = false;
   read_requested_ = false;
 }
