@@ -47,6 +47,7 @@ Ram<T>::Ram(uint64_t address_width, uint8_t latency) {
   latency_ = latency;
   address_width_ = address_width;
   data_ = new T[(int) pow(2, address_width)];
+  read_ready_ = false;
 }
 
 template <typename T>
