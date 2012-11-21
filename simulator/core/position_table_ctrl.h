@@ -3,16 +3,33 @@
 #ifndef CS316_CORE_POSITION_TABLE_CTRL_H_
 #define CS316_CORE_POSITION_TABLE_CTRL_H_
 
-#include <cstdint>
+#include <stdint.h>
 #include "sequential.h"
 
-class Position_Table_Ctrl : public Sequential {
+class PositionTableCtrl : public Sequential {
  public:
-  Position_Table_Ctrl();
-  ~Position_Table_Ctrl();
+  PositionTableCtrl();
+  ~PositionTableCtrl();
   void NextClockCycle();
-  void Reset();    
+  void Reset();
+  
+  // Interval Table Controller interface function stubs
+  
+  // Returns true if PTC is ready to receive a new interval
+  bool ReceiveReady();
+  
+  // Receive and store the interval info for processing
+  void ReceiveInterval(uint32_t interval_start, uint32_t interval_length)
+  
  private:
 };
+
+bool PositionTableCtrl::ReceiveReady() {
+  return true;
+}
+
+void PositionTableCtrl::ReceiveInterval(uint32_t interval_start, uint32_t interval_length) {
+  return;
+}
 
 #endif // CS316_CORE_POSITION_TABLE_CTRL_H_
