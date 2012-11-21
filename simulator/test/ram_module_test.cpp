@@ -10,7 +10,7 @@
 
 // Helper function to preload RAMs with incrementing values
 void preload (RamModule<int>* rm) {
-  Ram<int>** rams = rm->GetRams();
+  Ram<int>** rams = rm->rams();
   
   for (int i = 0; i < NUM_RAMS; i++) {
     for (int j = 0; j < (int) pow(2, RAM_ADDRESS_WIDTH); j++) {

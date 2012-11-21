@@ -38,10 +38,10 @@ template <typename T>
 class RamModule : public Sequential {
  public:
   RamModule(uint64_t num_rams, uint64_t num_ports, uint64_t ram_address_width,
-             uint8_t ram_latency);
+            uint8_t ram_latency);
   ~RamModule();
   
-  // Bitch.
+  // Performs round-robin scheduling of RAM requests and other sequential logic
   void NextClockCycle();
 
   // Resets all FIFOs and internal states.
@@ -63,8 +63,8 @@ class RamModule : public Sequential {
   // the read data is ready.
   T ReadData(uint64_t port_num);
   
-  // ONLY USED FOR TESTING PURPOSES
-  Ram<T>** GetRams();
+  // Only used for preloading purposes
+  Ram<T>** rams();
   
  private:
   // Obtains the RAM chip ID from the passed address.
@@ -217,6 +217,7 @@ void RamModule<T>::NextClockCycle() {
       uint64_t ram_address = GetRamAddress(req.address);
       if (!(port_input_fifos_[cur_port]->IsEmpty()) && ram_id == i) {
         if (req.is_write == false) {
+          //std::cout<<"Sending rams_["<<i<<"]->ReadRequest("<<ram_address<<")"<<std::endl;
           rams_[i]->ReadRequest(ram_address);
           ram_inflight_read_request_fifos_[i]->WriteRequest(req);
         } else {
@@ -260,7 +261,7 @@ uint64_t RamModule<T>::GetRamAddress(uint64_t address) {
 }
 
 template <typename T>
-Ram<T>** RamModule<T>::GetRams() {
+Ram<T>** RamModule<T>::rams() {
   return rams_;
 }
           
