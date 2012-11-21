@@ -6,11 +6,13 @@
 //                     InputReader::~InputReader()   - Destructor
 //                     InputReader::SubReadRequest() - Request next work unit
 //                     InputReader::SubReadReady()   - Check if next work unit ready
+//                     InputReader::Done()           - Check if workload is finished
 //                     InputReader::NextClockCycle() - Advance to next clock cycle
 //                     InputReader::Reset()          - Reset internal states
 //
 // Revision History  :
 //     Albert Ng      Nov 19 2012     Initial Revision
+//     Albert Ng      Nov 20 2012     Debugged and passes unit test
 
 #ifndef CS316_CORE_INPUT_READER_H_
 #define CS316_CORE_INPUT_READER_H_
@@ -23,13 +25,7 @@
 #include "params.h"
 #include "fifo.h"
 #include "ram_module.h"
-
-struct SubRead{
-  uint64_t read_id;
-  uint64_t subread_offset;
-  uint64_t length;
-  uint64_t data;
-};
+#include "def.h"
 
 // Simulates the input workload RAM and the front-end reader that supplies the
 // interval table controllers with subreads.

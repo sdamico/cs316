@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include "sequential.h"
+#include "def.h"
 
 class PositionTableCtrl : public Sequential {
  public:
@@ -19,7 +20,7 @@ class PositionTableCtrl : public Sequential {
   bool ReceiveReady();
   
   // Receive and store the interval info for processing
-  void ReceiveInterval(uint32_t interval_start, uint32_t interval_length)
+  void ReceiveInterval(PositionTableInterval interval, SubRead sr);
   
  private:
 };
@@ -28,7 +29,8 @@ bool PositionTableCtrl::ReceiveReady() {
   return true;
 }
 
-void PositionTableCtrl::ReceiveInterval(uint32_t interval_start, uint32_t interval_length) {
+void PositionTableCtrl::ReceiveInterval(PositionTableInterval interval,
+                                        SubRead sr) {
   return;
 }
 
