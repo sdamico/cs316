@@ -6,6 +6,7 @@
 //                     Fifo::IsFull()         - Check if FIFO is full
 //                     Fifo::IsAlmostFull()   - Check if FIFO is almost full
 //                     Fifo::IsEmpty()        - Check if FIFO is empty
+//                     Fifo::Size()           - Get current FIFO size
 //                     Fifo::WriteRequest()   - Request to write data to FIFO
 //                     Fifo::ReadRequest()    - Request to read data from FIFO
 //                     Fifo::NextClockCycle() - Advance to the next clock cycle
@@ -13,6 +14,7 @@
 // Revision History  :
 //     Albert Ng      Nov 13 2012     Initial Revision
 //     Albert Ng      Nov 14 2012     Added read_ready and IsAlmostFull()
+//     Albert Ng      Nov 19 2012     Added Size()
 
 #ifndef CS316_CORE_FIFO_H_
 #define CS316_CORE_FIFO_H_
@@ -40,6 +42,9 @@ class Fifo : public Sequential {
   
   // Returns true if FIFO does not hold any entries.
   bool IsEmpty();
+  
+  // Returns the current number of entries stored in the FIFO.
+  uint64_t Size();
   
   // Request to write the passed data on next clock cycle.
   // It is up to the requestor to check if the FIFO is full.
@@ -125,6 +130,11 @@ bool Fifo<T>::IsAlmostFull() {
 template <typename T>
 bool Fifo<T>::IsEmpty() {
   return data_.empty();
+}
+
+template <typename T>
+uint64_t Fifo<T>::Size() {
+  return data_.size();
 }
 
 template <typename T>
