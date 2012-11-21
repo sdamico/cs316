@@ -2,7 +2,7 @@ CC=g++
 CFLAGS = -g -Wall
 CORE_DIR = ../core
 
-all: fifo ram ram_module
+all: fifo ram ram_module input_reader
 
 fifo: fifo_test.o
 	mkdir -p bin/
@@ -24,6 +24,13 @@ ram_module: ram_module_test.o
 
 ram_module_test.o: ram_module_test.cpp
 	$(CC) $(CFLAGS) -c ram_module_test.cpp -I $(CORE_DIR)
+
+input_reader: input_reader_test.o
+	mkdir -p bin/
+	$(CC) $(CFLAGS) input_reader_test.o -o bin/input_reader_test
+
+input_reader_test.o: input_reader_test.cpp
+	$(CC) $(CFLAGS) -c input_reader_test.cpp -I $(CORE_DIR)
 
 clean:
 	rm -rf *.o bin
