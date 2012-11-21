@@ -11,15 +11,18 @@
 //                     RamModule::ReadReady()      - Check if read data is ready at a port
 //                     RamModule::WriteRequest()   - Request to write to RAM
 //                     RamModule::ReadData()       - Grab read data at a port
-//                     RamModule::GetRams()        - Directly access RAMs, used for testing
+//                     RamModule::Size()           - Get the total size of the RAM module
+//                     RamModule::rams()           - Directly access RAMs, used for testing
 // Revision History  :
 //     Albert Ng      Nov 15 2012     Initial Revision
 //     Albert Ng      Nov 16 2012     Added RAM module write capability
+//     Albert Ng      Nov 21 2012     Added Size()
 
 #ifndef CS316_CORE_RAM_MODULE_H_
 #define CS316_CORE_RAM_MODULE_H_
 
 #include <stdint.h>
+#include <cmath>
 #include "sequential.h"
 #include "ram.h"
 #include "fifo.h"
@@ -63,7 +66,11 @@ class RamModule : public Sequential {
   // the read data is ready.
   T ReadData(uint64_t port_num);
   
-  // Only used for preloading purposes
+  // Returns the size of the RAM
+  uint64_t Size();
+  
+  // Provides direct access to RAMs. Only used for preloading purposes
+  // TODO(Albert): Make a preload function?
   Ram<T>** rams();
   
  private:
@@ -148,6 +155,60 @@ RamModule<T>::~RamModule() {
 }
 
 template <typename T>
+void RamModule<T>::NextClockCycle() {
+  Sequential::NextClockCycle();
+  for (unsigned int i = 0; i < num_ports_; i++) {
+    read_ready_[i] = false;
+  }
+  
+  for (unsigned int i = 0; i < num_rams_; i++) {
+    // Loop through ports starting from current port counter and find the
+    // first port with an outstanding request to this RAM. If one is found,
+    // send that request to the RAM, store it in the inflight request FIFO,
+    // pop it from the port input FIFO, and update the current port counter to
+    // the next port for fairness.
+    // If no ports with an outstanding request for this RAM is found, current
+    // port counter stays the same.
+    for (unsigned int j = 0; j < num_ports_; j++) {
+      int cur_port = (j + port_counters_[i]) % num_ports_;
+      RamModuleRequest<T>  req = port_input_fifos_[cur_port]->read_data();
+      uint64_t ram_id = GetRamID(req.address);
+      uint64_t ram_address = GetRamAddress(req.address);
+      if (!(port_input_fifos_[cur_port]->IsEmpty()) && ram_id == i) {
+        if (req.is_write == false) {
+          //std::cout<<"Sending rams_["<<i<<"]->ReadRequest("<<ram_address<<")"<<std::endl;
+          rams_[i]->ReadRequest(ram_address);
+          ram_inflight_read_request_fifos_[i]->WriteRequest(req);
+        } else {
+          rams_[i]->WriteRequest(ram_address, req.write_data);
+        }
+        
+        port_input_fifos_[cur_port]->ReadRequest();
+        port_counters_[i] = (cur_port + 1) % num_ports_;
+        break;
+      }
+    }
+    
+    // When RAM read data is ready, pop the corresponding request information and
+    // and send the data to the corresponding port.
+    if (rams_[i]->read_ready() == true) {
+      RamModuleRequest<T>  req = ram_inflight_read_request_fifos_[i]->read_data();
+      ram_inflight_read_request_fifos_[i]->ReadRequest();
+      read_ready_[req.port_num] = true;
+      read_data_[req.port_num] = rams_[i]->read_data();
+    }
+  }
+  
+  for (unsigned int i = 0; i < num_rams_; i++) {
+    rams_[i]->NextClockCycle();
+    ram_inflight_read_request_fifos_[i]->NextClockCycle();
+  }
+  for (unsigned int i = 0; i < num_ports_; i++) {
+    port_input_fifos_[i]->NextClockCycle();
+  }
+}
+
+template <typename T>
 void RamModule<T>::Reset() {
   for (unsigned int i = 0; i < num_rams_; i++) {
     rams_[i]->Reset();
@@ -196,57 +257,8 @@ T RamModule<T>::ReadData(uint64_t port_num) {
 }
 
 template <typename T>
-void RamModule<T>::NextClockCycle() {
-  Sequential::NextClockCycle();
-  for (unsigned int i = 0; i < num_ports_; i++) {
-    read_ready_[i] = false;
-  }
-
-  for (unsigned int i = 0; i < num_rams_; i++) {
-    // Loop through ports starting from current port counter and find the
-    // first port with an outstanding request to this RAM. If one is found,
-    // send that request to the RAM, store it in the inflight request FIFO,
-    // pop it from the port input FIFO, and update the current port counter to
-    // the next port for fairness.
-    // If no ports with an outstanding request for this RAM is found, current
-    // port counter stays the same.
-    for (unsigned int j = 0; j < num_ports_; j++) {
-      int cur_port = (j + port_counters_[i]) % num_ports_;
-      RamModuleRequest<T>  req = port_input_fifos_[cur_port]->read_data();
-      uint64_t ram_id = GetRamID(req.address);
-      uint64_t ram_address = GetRamAddress(req.address);
-      if (!(port_input_fifos_[cur_port]->IsEmpty()) && ram_id == i) {
-        if (req.is_write == false) {
-          //std::cout<<"Sending rams_["<<i<<"]->ReadRequest("<<ram_address<<")"<<std::endl;
-          rams_[i]->ReadRequest(ram_address);
-          ram_inflight_read_request_fifos_[i]->WriteRequest(req);
-        } else {
-          rams_[i]->WriteRequest(ram_address, req.write_data);
-        }
-
-        port_input_fifos_[cur_port]->ReadRequest();
-        port_counters_[i] = (cur_port + 1) % num_ports_;
-        break;
-      }
-    }
-    
-    // When RAM read data is ready, pop the corresponding request information and
-    // and send the data to the corresponding port.
-    if (rams_[i]->read_ready() == true) {
-      RamModuleRequest<T>  req = ram_inflight_read_request_fifos_[i]->read_data();
-      ram_inflight_read_request_fifos_[i]->ReadRequest();
-      read_ready_[req.port_num] = true;
-      read_data_[req.port_num] = rams_[i]->read_data();
-    }
-  } 
-  
-  for (unsigned int i = 0; i < num_rams_; i++) {
-    rams_[i]->NextClockCycle();
-    ram_inflight_read_request_fifos_[i]->NextClockCycle();
-  }
-  for (unsigned int i = 0; i < num_ports_; i++) {
-    port_input_fifos_[i]->NextClockCycle();
-  }
+uint64_t RamModule<T>::Size() {
+  return (num_rams_ * ((uint64_t) pow(2, ram_address_width_)));
 }
 
 template <typename T>

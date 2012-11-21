@@ -33,6 +33,7 @@ int main (int argc, char** argv) {
     assert(rm.IsPortReady(i) == true);
     assert(rm.ReadReady(i) == false);
   }
+  assert(rm.Size() == NUM_RAMS * pow(2, RAM_ADDRESS_WIDTH));
   
   // Multi-port simultaneous read to separate banks test
   for (int i = 0; i < NUM_PORTS; i++) {
