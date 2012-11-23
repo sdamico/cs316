@@ -24,26 +24,23 @@ int main (int argc, char** argv) {
   
   // Read the subread parameters from the file
   std::ifstream subread_file;
-  unsigned int num_reads_ui;
-  unsigned int num_subreads_per_read_ui;
-  unsigned int subread_length_ui;
+  unsigned int num_reads;
+  unsigned int num_subreads_per_read;
+  unsigned int subread_length;
   subread_file.open(argv[1]);
-  subread_file.read((char *) (&num_reads_ui), sizeof(unsigned int ));
-  subread_file.read((char *) (&num_subreads_per_read_ui), sizeof(unsigned int ));
-  subread_file.read((char *) (&subread_length_ui), sizeof(unsigned int ));
-  uint64_t num_reads = (uint64_t) num_reads_ui;
-  uint64_t num_subreads_per_read = (uint64_t) num_subreads_per_read_ui;
-  uint64_t subread_length = (uint64_t) subread_length_ui;
-  uint64_t num_itcs = num_subreads_per_read * 2;
-  uint64_t num_parallel_reads = num_itcs / num_subreads_per_read;
+  subread_file.read((char *) (&num_reads), sizeof(unsigned int ));
+  subread_file.read((char *) (&num_subreads_per_read), sizeof(unsigned int ));
+  subread_file.read((char *) (&subread_length), sizeof(unsigned int ));
+  unsigned int num_itcs = num_subreads_per_read * 2;
+  unsigned int num_parallel_reads = num_itcs / num_subreads_per_read;
   assert(num_itcs % num_subreads_per_read == 0);
   
   // Store the subreads into lists to be used later
   std::queue<uint64_t>* subread_list = new std::queue<uint64_t>[num_itcs];
-  uint64_t cur_subread = 0;
+  unsigned int cur_subread = 0;
   while (cur_subread < num_reads * num_subreads_per_read) {
     uint64_t subread;
-    uint64_t cur_itc = cur_subread % num_itcs;
+    unsigned int cur_itc = cur_subread % num_itcs;
     subread_file.read((char *) (&subread), sizeof(uint64_t));
     subread_list[cur_itc].push(subread);
     cur_subread++;
@@ -155,12 +152,10 @@ int main (int argc, char** argv) {
   //------------------------- num_itcs != INPUT_READER_NUM_RAMS test -----------------------  
   // Read the subread parameters from the file
   subread_file.open(argv[2]);
-  subread_file.read((char *) (&num_reads_ui), sizeof(unsigned int ));
-  subread_file.read((char *) (&num_subreads_per_read_ui), sizeof(unsigned int ));
-  subread_file.read((char *) (&subread_length_ui), sizeof(unsigned int ));
-  num_reads = (uint64_t) num_reads_ui;
-  num_subreads_per_read = (uint64_t) num_subreads_per_read_ui;
-  subread_length = (uint64_t) subread_length_ui;
+  subread_file.read((char *) (&num_reads), sizeof(unsigned int ));
+  subread_file.read((char *) (&num_subreads_per_read), sizeof(unsigned int));
+  subread_file.read((char *) (&subread_length), sizeof(unsigned int));
+
   num_itcs = num_subreads_per_read * 2;
   num_parallel_reads = num_itcs / num_subreads_per_read;
 
@@ -169,7 +164,7 @@ int main (int argc, char** argv) {
   cur_subread = 0;
   while (cur_subread < num_reads * num_subreads_per_read) {
     uint64_t subread;
-    uint64_t cur_itc = cur_subread % num_itcs;
+    unsigned int cur_itc = cur_subread % num_itcs;
     subread_file.read((char *) (&subread), sizeof(uint64_t));
     subread_list[cur_itc].push(subread);
     cur_subread++;
