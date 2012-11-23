@@ -164,6 +164,8 @@ bool InputReader::Done() {
 }
 
 void InputReader::NextClockCycle() {
+  Sequential::NextClockCycle();
+  
   unsigned int num_parallel_reads = num_itcs_ / num_subreads_per_read_;
   
   for (unsigned int i = 0; i < num_itcs_; i++) {

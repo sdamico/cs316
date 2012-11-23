@@ -2,7 +2,7 @@ CC=g++
 CFLAGS = -g -Wall
 CORE_DIR = ../core
 
-all: fifo ram ram_module input_reader
+all: fifo ram ram_module input_reader interval_table_ctrl
 
 fifo: fifo_test.o
 	mkdir -p bin/
@@ -31,6 +31,13 @@ input_reader: input_reader_test.o
 
 input_reader_test.o: input_reader_test.cpp
 	$(CC) $(CFLAGS) -c input_reader_test.cpp -I $(CORE_DIR)
+
+interval_table_ctrl: interval_table_ctrl_test.o
+	mkdir -p bin/
+	$(CC) $(CFLAGS) interval_table_ctrl_test.o -o bin/interval_table_ctrl_test
+
+interval_table_ctrl_test.o: interval_table_ctrl_test.cpp
+	$(CC) $(CFLAGS) -c interval_table_ctrl_test.cpp -I $(CORE_DIR)
 
 clean:
 	rm -rf *.o bin

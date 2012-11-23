@@ -49,6 +49,7 @@ int main (int argc, char** argv) {
   
   // Instantiate the input reader
   InputReader* ir = new InputReader(argv[1], num_itcs);
+  uint64_t start_cycle = ir->cycle_count();
   
   // Wait for RAM latency clock cycles for subread FIFO to start
   // filling up with subread work units
@@ -148,8 +149,8 @@ int main (int argc, char** argv) {
   
   // Check that workload is done
   assert(ir->Done() == true);
-  
-  //------------------------- num_itcs != INPUT_READER_NUM_RAMS test -----------------------  
+  std::cout << "No conflict test took " << ir->cycle_count() - start_cycle << " cycles" << std::endl;
+  //------------------------- num_itcs != INPUT_READER_NUM_RAMS test -----------------------
   // Read the subread parameters from the file
   subread_file.open(argv[2]);
   subread_file.read((char *) (&num_reads), sizeof(unsigned int ));
@@ -173,6 +174,7 @@ int main (int argc, char** argv) {
 
   // Instantiate the input reader
   ir = new InputReader(argv[2], num_itcs);
+  start_cycle = ir->cycle_count();
   
   // Initialize read counters for individual itcs
   uint64_t* read_counters = new uint64_t[num_itcs];
@@ -198,6 +200,7 @@ int main (int argc, char** argv) {
   
   // Check that workload is done
   assert(ir->Done() == true);
+  std::cout << "Conflict test took " << ir->cycle_count() - start_cycle << " cycles" << std::endl;
   
   std::cout << "Input Reader tests complete!" << std::endl;
   return 0;

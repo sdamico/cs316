@@ -28,6 +28,6 @@ struct PositionTableInterval{
 struct SubReadInterval {
   SubRead sr;
   PositionTableInterval interval;
-}
+};
 
 #endif // CS316_CORE_DEF_H_

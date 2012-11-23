@@ -2,23 +2,29 @@
 // Description       : Multi-port, multi-banked RAM hardware simulation class definitions
 // Table of Contents : RamModuleRequest struct declaration
 //                     RamModule class declaration
-//                     RamModule::RamModule()      - Constructor
-//                     RamModule::~RamModule()     - Destructor
-//                     RamModule::NextClockCycle() - Advance to the next clock cycle
-//                     RamModule::Reset()          - Reset RAM Module state
-//                     RamModule::IsPortReady()    - Check if a port is ready for requests
-//                     RamModule::ReadRequest()    - Request to read from RAM
-//                     RamModule::ReadReady()      - Check if read data is ready at a port
-//                     RamModule::WriteRequest()   - Request to write to RAM
-//                     RamModule::ReadData()       - Grab read data at a port
-//                     RamModule::Size()           - Get the total size of the RAM module
-//                     RamModule::rams()           - Directly access RAMs, used for testing
-//                     RamModule::Preload()        - Preload the RAM with data
+//                     RamModule::RamModule()         - Constructor
+//                     RamModule::~RamModule()        - Destructor
+//                     RamModule::NextClockCycle()    - Advance to the next clock cycle
+//                     RamModule::Reset()             - Reset RAM Module state
+//                     RamModule::IsPortReady()       - Check if a port is ready for requests
+//                     RamModule::ReadRequest()       - Request to read from RAM
+//                     RamModule::ReadReady()         - Check if read data is ready at a port
+//                     RamModule::WriteRequest()      - Request to write to RAM
+//                     RamModule::ReadData()          - Grab read data at a port
+//                     RamModule::Size()              - Get the total size of the RAM module
+//                     RamModule::rams()              - Directly access RAMs, used for testing
+//                     RamModule::num_rams()          - Accessor for number of RAMs
+//                     RamModule::ram_address_width() - Accessor for address width of each RAM
+//                     RamModule::Preload()           - Preload the RAM with data
+//                     RamModule::GetAccessCount()    - Get the number of accesses for a RAM
+//                     RamModule::ResetAccessCounts() - Reset access count for all RAMs
 // Revision History  :
 //     Albert Ng      Nov 15 2012     Initial Revision
 //     Albert Ng      Nov 16 2012     Added RAM module write capability
 //     Albert Ng      Nov 21 2012     Added Size()
 //     Albert Ng      Nov 22 2012     Added Preload()
+//     Albert Ng      Nov 23 2012     Added access count statistics, num_rams(),
+//                                      ram_address_width()
 
 #ifndef CS316_CORE_RAM_MODULE_H_
 #define CS316_CORE_RAM_MODULE_H_
@@ -76,8 +82,18 @@ class RamModule : public Sequential {
   // TODO(Albert): Make a preload function?
   Ram<T>** rams();
   
+  // Parameter accessors
+  uint64_t num_rams();
+  uint64_t ram_address_width();
+  
   // Preload the RAMs with given data, with or without interleaving.
   void Preload(T* data, unsigned int size, bool interleave);
+  
+  // Get the number of times a RAM has been accessed.
+  uint64_t GetAccessCount(uint64_t ram_id);
+  
+  // Reset access counts for all RAMs
+  void ResetAccessCounts();
   
  private:
   // Obtains the RAM chip ID from the passed address.
@@ -116,6 +132,9 @@ class RamModule : public Sequential {
   
   // Port round-robin counters for scheduling read requests into the RAMs.
   uint64_t* port_counters_;
+  
+  // RAM access counts for statistics
+  uint64_t* access_counts_;
 };
 
 template <typename T>
@@ -141,6 +160,9 @@ RamModule<T>::RamModule(uint64_t num_rams, uint64_t num_ports,
     port_input_fifos_[i] = new Fifo<RamModuleRequest<T> >(num_ports);
     read_ready_[i] = false;
   }
+  
+  access_counts_ = new uint64_t[num_rams_];
+  ResetAccessCounts();
 }
 
 template <typename T>
@@ -177,7 +199,7 @@ void RamModule<T>::NextClockCycle() {
     // port counter stays the same.
     for (unsigned int j = 0; j < num_ports_; j++) {
       int cur_port = (j + port_counters_[i]) % num_ports_;
-      RamModuleRequest<T>  req = port_input_fifos_[cur_port]->read_data();
+      RamModuleRequest<T> req = port_input_fifos_[cur_port]->read_data();
       uint64_t ram_id = GetRamID(req.address);
       uint64_t ram_address = GetRamAddress(req.address);
       if (!(port_input_fifos_[cur_port]->IsEmpty()) && ram_id == i) {
@@ -190,6 +212,7 @@ void RamModule<T>::NextClockCycle() {
         
         port_input_fifos_[cur_port]->ReadRequest();
         port_counters_[i] = (cur_port + 1) % num_ports_;
+        access_counts_[i]++;
         break;
       }
     }
@@ -224,6 +247,7 @@ void RamModule<T>::Reset() {
     port_input_fifos_[i]->Reset();
     read_ready_[i] = false;
   }
+  ResetAccessCounts();
 }
 
 template <typename T>
@@ -282,6 +306,16 @@ Ram<T>** RamModule<T>::rams() {
 }
 
 template <typename T>
+uint64_t RamModule<T>::num_rams() {
+  return num_rams_;
+}
+
+template <typename T>
+uint64_t RamModule<T>::ram_address_width() {
+  return ram_address_width_;
+}
+
+template <typename T>
 void RamModule<T>::Preload(T* data, unsigned int size, bool interleave) {
   assert(size <= num_rams_ * pow(2, ram_address_width_));
   
@@ -304,6 +338,24 @@ void RamModule<T>::Preload(T* data, unsigned int size, bool interleave) {
       ram_addresses[ram_id]++;
       ram_id = (ram_id + 1) % num_rams_;
     }
+  }
+  for (unsigned int i = 0; i < ram_latency_; i++) {
+    for (unsigned int j = 0; j < num_rams_; j++) {
+      rams_[j]->NextClockCycle();
+    }
+  }
+}
+
+template <typename T>
+uint64_t RamModule<T>::GetAccessCount(uint64_t ram_id) {
+  return access_counts_[ram_id];
+}
+
+
+template <typename T>
+void RamModule<T>::ResetAccessCounts() {
+  for (unsigned int i = 0; i < num_rams_; i++) {
+    access_counts_[i] = 0;
   }
 }
           
