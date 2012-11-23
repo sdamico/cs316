@@ -20,17 +20,31 @@ class PositionTableCtrl : public Sequential {
   bool ReceiveReady();
   
   // Receive and store the interval info for processing
-  void ReceiveInterval(PositionTableInterval interval, SubRead sr);
+  void ReceiveInterval(SubReadInterval sri);
   
  private:
 };
+
+
+PositionTableCtrl::PositionTableCtrl() {
+}
+
+
+PositionTableCtrl::~PositionTableCtrl() {
+}
+
+
+void PositionTableCtrl::NextClockCycle() {
+}
+
+void PositionTableCtrl::Reset() {
+}
 
 bool PositionTableCtrl::ReceiveReady() {
   return true;
 }
 
-void PositionTableCtrl::ReceiveInterval(PositionTableInterval interval,
-                                        SubRead sr) {
+void PositionTableCtrl::ReceiveInterval(SubReadInterval sri) {
   return;
 }
 

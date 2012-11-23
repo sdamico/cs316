@@ -3,6 +3,7 @@
 // Table of Contents :
 // Revision History  :
 //     Albert Ng      Nov 20 2012     Initial Revision
+//     Albert Ng      Nov 22 2012     Added SubReadInterval
 
 #ifndef CS316_CORE_DEF_H_
 #define CS316_CORE_DEF_H_
@@ -22,5 +23,11 @@ struct PositionTableInterval{
   uint32_t start;
   uint32_t length;
 };
+
+// SubRead and Position Table Interval information together
+struct SubReadInterval {
+  SubRead sr;
+  PositionTableInterval interval;
+}
 
 #endif // CS316_CORE_DEF_H_
