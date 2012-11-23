@@ -13,10 +13,12 @@
 //                     RamModule::ReadData()       - Grab read data at a port
 //                     RamModule::Size()           - Get the total size of the RAM module
 //                     RamModule::rams()           - Directly access RAMs, used for testing
+//                     RamModule::Preload()        - Preload the RAM with data
 // Revision History  :
 //     Albert Ng      Nov 15 2012     Initial Revision
 //     Albert Ng      Nov 16 2012     Added RAM module write capability
 //     Albert Ng      Nov 21 2012     Added Size()
+//     Albert Ng      Nov 22 2012     Added Preload()
 
 #ifndef CS316_CORE_RAM_MODULE_H_
 #define CS316_CORE_RAM_MODULE_H_
@@ -26,6 +28,7 @@
 #include "sequential.h"
 #include "ram.h"
 #include "fifo.h"
+#include <assert.h>
 
 template <typename T>
 struct RamModuleRequest {
@@ -73,6 +76,9 @@ class RamModule : public Sequential {
   // TODO(Albert): Make a preload function?
   Ram<T>** rams();
   
+  // Preload the RAMs with given data, with or without interleaving.
+  void Preload(T* data, unsigned int size, bool interleave);
+  
  private:
   // Obtains the RAM chip ID from the passed address.
   uint64_t GetRamID(uint64_t address);
@@ -108,7 +114,7 @@ class RamModule : public Sequential {
   // Read data for each port
   T* read_data_;
   
-  // Port round-robin counters for scheduling read requests into the RAMs
+  // Port round-robin counters for scheduling read requests into the RAMs.
   uint64_t* port_counters_;
 };
 
@@ -176,7 +182,6 @@ void RamModule<T>::NextClockCycle() {
       uint64_t ram_address = GetRamAddress(req.address);
       if (!(port_input_fifos_[cur_port]->IsEmpty()) && ram_id == i) {
         if (req.is_write == false) {
-          //std::cout<<"Sending rams_["<<i<<"]->ReadRequest("<<ram_address<<")"<<std::endl;
           rams_[i]->ReadRequest(ram_address);
           ram_inflight_read_request_fifos_[i]->WriteRequest(req);
         } else {
@@ -264,7 +269,6 @@ uint64_t RamModule<T>::Size() {
 template <typename T>
 uint64_t RamModule<T>::GetRamID(uint64_t address) {
   return (address >> ram_address_width_);
-            
 }
 
 template <typename T>
@@ -275,6 +279,32 @@ uint64_t RamModule<T>::GetRamAddress(uint64_t address) {
 template <typename T>
 Ram<T>** RamModule<T>::rams() {
   return rams_;
+}
+
+template <typename T>
+void RamModule<T>::Preload(T* data, unsigned int size, bool interleave) {
+  assert(size <= num_rams_ * pow(2, ram_address_width_));
+  
+  unsigned int ram_id = 0;
+  unsigned int* ram_addresses = new unsigned int[num_rams_];
+  for (unsigned int i = 0; i < num_rams_; i++) {
+    ram_addresses[i] = 0;
+  }
+  
+  for (unsigned int i = 0; i < size; i++) {
+    rams_[ram_id]->WriteRequest(ram_addresses[ram_id], data[i]);
+    rams_[ram_id]->NextClockCycle();
+    if (interleave == false) {
+      if (ram_addresses[ram_id] == (uint64_t) (pow(2, ram_address_width_) - 1)) {
+        ram_id++;
+      } else {
+        ram_addresses[ram_id]++;
+      }
+    } else {
+      ram_addresses[ram_id]++;
+      ram_id = (ram_id + 1) % num_rams_;
+    }
+  }
 }
           
 #endif // CS316_CORE_RAM_MODULE_H_

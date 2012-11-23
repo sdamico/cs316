@@ -19,6 +19,7 @@
 #include <string>
 #include <list>
 #include <assert.h>
+#include <stdint.h>
 
 using namespace std;
 
@@ -149,7 +150,7 @@ int main (int argc, char* argv[]) {
     
     int* interval_table_read = new int[interval_table_size];    
     interval_table_file_read.read((char *)interval_table_read, interval_table_size * sizeof(int));
-    interval_table_file.close();
+    interval_table_file_read.close();
     
     ofstream interval_table_ascii_file;
     interval_table_ascii_file.open(argv[5]);
