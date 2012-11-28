@@ -57,13 +57,16 @@ int main (int argc, char* argv[]) {
   cout << "Computing linked-list-based position lookup table" << endl;
   unsigned int seed_length = (unsigned int) atoi(argv[2]);
   unsigned int num_seeds = 1 << (2 * seed_length);
-  list<int>* seed2index = new list<int>[num_seeds];
+  list<unsigned int>* seed2index = new list<unsigned int>[num_seeds];
   list<unsigned char>* cur_seed = new list<unsigned char>;
   
   unsigned char quad;
   unsigned int char_num;
   unsigned int cur_index = 0;
   for (unsigned int i = 0; i < ref_seq_length; i++) {
+    if (i % 10000000 == 0) {
+      std::cout << "Linked List: " << i << " out of " << ref_seq_length << std::endl;
+    }
     if (i % 4 == 0) {
       quad = ref_seq_file.get();
       char_num = 0;
@@ -93,6 +96,9 @@ int main (int argc, char* argv[]) {
   int start = 0, size = 0;
   int index = 0;
   for (unsigned int i = 0; i < num_seeds; i++) {
+    if (i % 10000000 == 0) {
+      std::cout << "Tables " << i << " out of " << num_seeds << std::endl;
+    }
     while (!seed2index[i].empty()) {
       position_table[index] = seed2index[i].front();
       seed2index[i].pop_front();
@@ -119,7 +125,7 @@ int main (int argc, char* argv[]) {
   ofstream interval_table_file;
   interval_table_file.open(argv[3]);
   interval_table_file.write((char *)(&interval_table_size), sizeof(unsigned int));
-  interval_table_file.write((char *)interval_table, num_seeds * sizeof(int));
+  interval_table_file.write((char *)interval_table, (num_seeds + 1) * sizeof(int));
   interval_table_file.close();
 
   if (argc == 7) {
