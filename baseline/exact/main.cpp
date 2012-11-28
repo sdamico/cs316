@@ -6,12 +6,16 @@
 #include <stdint.h>
 #include <vector>
 #include <assert.h>
+#include <cstdlib>
 
 // Merges two sorted lists of positions, given a required offset (vec2 - vec1)
-void merge (std::vector<unsigned int>* vec1, std::vector<unsigned int>* vec2, std::vector<unsigned int>* result, int offset) {
+void merge (std::vector<unsigned int>* vec1, std::vector<unsigned int>* vec2, std::vector<unsigned int>* result, unsigned int offset) {
   unsigned int ptr1 = 0;
   unsigned int ptr2 = 0;
   
+  while ((*vec2)[ptr2] < offset) {
+    ptr2++;
+  }
   while ((ptr1 < vec1->size()) && (ptr2 < vec2->size())) {
     if ((*vec1)[ptr1] == (*vec2)[ptr2] - offset) {
       result->push_back((*vec1)[ptr1]);
@@ -38,16 +42,20 @@ int main (int argc, char** argv) {
   ReadPositionTable(argv[3], &position_table);
   
   std::ifstream queries_file;
-  unsigned int num_queries;
+  unsigned int num_queries_in_file;
   unsigned int query_length;
   queries_file.open(argv[4]);
-  queries_file.read((char *)(&num_queries), sizeof(unsigned int));
+  queries_file.read((char *)(&num_queries_in_file), sizeof(unsigned int));
   queries_file.read((char *)(&query_length), sizeof(unsigned int));
+  
+  unsigned int num_queries = 1000000;
+  assert(num_queries_in_file >= num_queries);
   
   unsigned int subread_length = atoi(argv[1]);
   unsigned int num_subreads_per_query = query_length / subread_length; // Truncating partial subreads
-
+  
   // Read in query list
+  std::cout << "Reading query list" << std::endl;
   query_list qlist;
   qlist.num_queries = num_queries;
   qlist.query_length = query_length;
@@ -59,6 +67,7 @@ int main (int argc, char** argv) {
   }
   
   // Split query list into subread list
+  std::cout << "Splitting query list into subread list" << std::endl;
   subread_list srlist;
   srlist.num_queries = num_queries;
   srlist.num_subreads_per_query = num_subreads_per_query;
@@ -69,6 +78,7 @@ int main (int argc, char** argv) {
   }
   for (unsigned int i = 0; i < num_queries; i++) {
     unsigned int bit_index = 0;
+    
     for (unsigned int j = 0 ; j < num_subreads_per_query; j++) {
       unsigned int byte = bit_index / 8;
       unsigned int offset = bit_index % 8;
@@ -127,6 +137,7 @@ int main (int argc, char** argv) {
   delete[] qlist.ptr;
   
   // Look up intervals for each subread
+  std::cout << "Performing interval table lookups" << std::endl;
   interval_list ilist;
   ilist.num_queries = num_queries;
   ilist.num_subreads_per_query = num_subreads_per_query;
@@ -142,12 +153,15 @@ int main (int argc, char** argv) {
   }
 
   // Look up positions for each subread
+  std::cout << "Performing position table lookups" << std::endl;
   std::ofstream results_file;
   results_file.open(argv[5]);
   results_file << num_queries << std::endl;
   for (unsigned int i = 0; i < num_queries; i++) {
+    if (i % 10000 == 0) {
+      std::cout << "Query " << i+1 << " out of " << num_queries << std::endl;
+    }
     std::vector<unsigned int>* prev_result = new std::vector<unsigned int>(&(position_table.ptr[ilist.ptr[i][0][0]]), &(position_table.ptr[ilist.ptr[i][0][1]]));
-    
     for (unsigned int j = 1; j < num_subreads_per_query; j++) {
       std::vector<unsigned int> next_positions (&(position_table.ptr[ilist.ptr[i][j][0]]), &(position_table.ptr[ilist.ptr[i][j][1]]));
       std::vector<unsigned int>* result = new std::vector<unsigned int>;
@@ -164,6 +178,7 @@ int main (int argc, char** argv) {
       results_file << *it << ' ';
     }
     results_file << std::endl;
+    delete prev_result;
   }
   results_file.close();
 }
