@@ -35,21 +35,12 @@ int main (int argc, char** argv) {
     exit(1);
   }
   
-  table interval_table;
-  table position_table;
-  
-  ReadIntervalTable(argv[2], &interval_table);
-  ReadPositionTable(argv[3], &position_table);
-  
   std::ifstream queries_file;
-  unsigned int num_queries_in_file;
+  unsigned int num_queries;
   unsigned int query_length;
   queries_file.open(argv[4]);
-  queries_file.read((char *)(&num_queries_in_file), sizeof(unsigned int));
+  queries_file.read((char *)(&num_queries), sizeof(unsigned int));
   queries_file.read((char *)(&query_length), sizeof(unsigned int));
-  
-  unsigned int num_queries = 1000000;
-  assert(num_queries_in_file >= num_queries);
   
   unsigned int subread_length = atoi(argv[1]);
   unsigned int num_subreads_per_query = query_length / subread_length; // Truncating partial subreads
@@ -135,6 +126,13 @@ int main (int argc, char** argv) {
     delete[] qlist.ptr[i];
   }
   delete[] qlist.ptr;
+  
+  // Read in Interval and Position Tables
+  std::cout << "Reading interval and position tables" << std::endl;
+  table interval_table;
+  table position_table;
+  ReadIntervalTable(argv[2], &interval_table);
+  ReadPositionTable(argv[3], &position_table);
   
   // Look up intervals for each subread
   std::cout << "Performing interval table lookups" << std::endl;
