@@ -11,30 +11,31 @@
 #include <cstdlib>
 #include <string>
 #include <list>
+#include <time.h>
 
 using namespace std;
 
 void write_query (std::list<unsigned char>* query, std::ofstream* out_file) {
   int char_num = 0;
-  char* quad = new char;
+  char quad = 0;
   
   std::list<unsigned char>::iterator it;
   for (it = query->begin(); it != query->end(); it++) {
-    *quad += (*it) << (3-char_num)*2;
+    quad += (*it) << (3-char_num)*2;
     if (char_num == 3) {
-      out_file->write(quad, sizeof(char));
-      *quad = 0;
+      out_file->write(&quad, sizeof(char));
+      quad = 0;
     }
     char_num = (char_num + 1) % 4;
   }
   if (char_num != 0) {
-    out_file->write(quad, sizeof(char));
+    out_file->write(&quad, sizeof(char));
   }
 }
 
 int main (int argc, char* argv[]) {
   if (argc < 4) {
-    cout << "Usage: " << argv[0] << " <Ref Seq File> <Query Seq Length> <Output Filename> [ASCII Filename]" << endl;
+    cout << "Usage: " << argv[0] << " <Ref Seq File> <Query Seq Length> <Output Filename> [ASCII Filename] [Num Queries]" << endl;
     exit(1);
   }
 
@@ -44,10 +45,33 @@ int main (int argc, char* argv[]) {
   ref_seq_file.open(argv[1]);
   ref_seq_file.read((char *)(&ref_seq_length), sizeof(unsigned int));
     
-  ofstream out_file;
-    
   unsigned int query_length = (unsigned int) atoi(argv[2]);
-  unsigned int num_queries = ref_seq_length - query_length + 1;
+  unsigned int total_num_queries = ref_seq_length - query_length + 1;
+
+  unsigned int num_queries;
+  bool* query_mask = new bool[total_num_queries];
+  for (unsigned int i = 0; i < total_num_queries; i++) {
+    query_mask[i] = false;
+  }
+  if (argc >= 6) {
+    num_queries = atoi(argv[5]);
+    srand(time(NULL));
+    unsigned int num_set = 0;
+    while (num_set < num_queries) {
+      int rand_num = rand() % total_num_queries;
+      if (query_mask[rand_num] == false) {
+        query_mask[rand_num] = true;
+        num_set++;
+      }
+    }
+  } else {
+    num_queries = total_num_queries;
+    for (unsigned int i = 0; i < total_num_queries; i++) {
+      query_mask[i] = true;
+    }
+  }
+
+  ofstream out_file;
   out_file.open(argv[3]);
   out_file.write((char *)(&num_queries), sizeof(unsigned int));
   out_file.write((char *)(&query_length), sizeof(unsigned int));
@@ -56,6 +80,9 @@ int main (int argc, char* argv[]) {
   unsigned char quad;
   int char_num = 0;
   for (unsigned int i = 0; i < ref_seq_length; i++) {
+    if (i % 1000000 == 0) {
+      std::cout << i << std::endl;
+    }
     if (i % 4 == 0) {
       quad = ref_seq_file.get();
       char_num = 0;
@@ -66,7 +93,7 @@ int main (int argc, char* argv[]) {
     if (query->size() > query_length) {
       query->pop_front();
     }
-    if (query->size() == query_length) {
+    if (query->size() == query_length && query_mask[i] == true) {
       write_query(query, &out_file);
     }
     
@@ -76,7 +103,7 @@ int main (int argc, char* argv[]) {
   ref_seq_file.close();
   out_file.close();
   
-  if (argc == 5) {
+  if (argc >= 5) {
     ifstream read_file;
     read_file.open(argv[3]);
     read_file.read((char *)(&num_queries), sizeof(unsigned int));
