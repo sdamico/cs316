@@ -16,7 +16,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
-#include <string>
+#include <cstring>
 #include <list>
 #include <assert.h>
 #include <stdint.h>
@@ -51,12 +51,44 @@ void* compress1(unsigned int *inputStream, unsigned int inputLength, unsigned ch
 			}
 			else {
 				delta = inputStream[i] - offset;
+				offset = inputStream[i];
 	//			cout << (int)delta << "b\t";
 				memcpy((void *)curOutput, (const void *)&delta, sizeof(unsigned char));
 				curOutput += sizeof(unsigned char);
 			}	
 		}	
 		//cout << endl;
+		*compressedSize = curOutput - outputStream;
+		return curOutput;
+	}
+	else {
+		*compressedSize = 0;
+		return outputStream;
+	}	
+}
+
+// write offset, then encode deltas 
+//
+void* compress2(unsigned int *inputStream, unsigned int inputLength, unsigned char *outputStream, unsigned int *compressedSize) {
+	unsigned int offset = inputStream[0];
+	if (inputLength != 0) {
+		unsigned char *curOutput = outputStream;
+		memcpy((void *)curOutput, (const void *)&offset, sizeof(unsigned int));
+		curOutput += sizeof(unsigned int);
+		for (unsigned int i = 1; i < inputLength; i++) {
+			unsigned int delta = inputStream[i] - offset;
+			unsigned char coded_delta;
+			while ((delta >> 7) > 0) {
+				coded_delta = (unsigned char)(delta & 0x7F);
+				memcpy((void *)curOutput, (const void *)&coded_delta, sizeof(unsigned char));
+				curOutput += sizeof(unsigned char);
+				delta = delta >> 7;
+			}
+			coded_delta = (unsigned char)delta | 0x80;			
+			memcpy((void *)curOutput, (const void *)&coded_delta, sizeof(unsigned char));
+			curOutput += sizeof(unsigned char);
+			offset = inputStream[i];
+		}	
 		*compressedSize = curOutput - outputStream;
 		return curOutput;
 	}
@@ -75,7 +107,7 @@ int main (int argc, char* argv[]) {
   //compression
   int compressionType = atoi(argv[5]);
   typedef void * (*CompressionFnPtr)(unsigned int *, unsigned int, unsigned char *, unsigned int *);
-  CompressionFnPtr compressionFunctions [] = {compress1};
+  CompressionFnPtr compressionFunctions [] = {compress1,compress2};
   CompressionFnPtr compressionFunction = compressionFunctions[compressionType];
 
   //read input files
