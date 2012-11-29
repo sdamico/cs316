@@ -133,7 +133,7 @@ int main (int argc, char* argv[]) {
   unsigned char *compress_buffer = new unsigned char[max_pt_entry_size*2*sizeof(unsigned int)];
   unsigned int *pt_buffer = new unsigned int[max_pt_entry_size];
   it_file.read((char*)(&cur_idx), sizeof(unsigned int));
-  for (unsigned int i = 0; i < num_seeds-1; i++ ) {
+  for (unsigned int i = 0; i < num_seeds; i++ ) {
 	//read next interval table index to get size of this position table entry
     it_file.read((char*)(&next_idx), sizeof(unsigned int));
 	unsigned int pt_entry_size = next_idx - cur_idx;
