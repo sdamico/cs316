@@ -7,7 +7,8 @@
 #include <vector>
 #include <assert.h>
 #include <cstdlib>
-
+#include <ctime>
+#define _BENCHMARK
 // Merges two sorted lists of positions, given a required offset (vec2 - vec1)
 void merge (std::vector<unsigned int>* vec1, std::vector<unsigned int>* vec2, std::vector<unsigned int>* result, unsigned int offset) {
   unsigned int ptr1 = 0;
@@ -135,7 +136,14 @@ int main (int argc, char** argv) {
   ReadPositionTable(argv[3], &position_table);
   
   // Look up intervals for each subread
+#ifndef _BENCHMARK
   std::cout << "Performing interval table lookups" << std::endl;
+#endif
+#ifdef _BENCHMARK
+  std::cout << "Benchmarking (no more output until done)..." << std::endl;
+  clock_t start, mid, end;
+  start = clock();
+#endif
   interval_list ilist;
   ilist.num_queries = num_queries;
   ilist.num_subreads_per_query = num_subreads_per_query;
@@ -144,24 +152,39 @@ int main (int argc, char** argv) {
     ilist.ptr[i] = new uint32_t*[num_subreads_per_query];
     for (unsigned int j = 0; j < num_subreads_per_query; j++) {
       ilist.ptr[i][j] = new uint32_t[2];
+#ifndef _BENCHMARK
       assert(srlist.ptr[i][j] < interval_table.length - 1);
-      ilist.ptr[i][j][0] = interval_table.ptr[srlist.ptr[i][j]];
-      ilist.ptr[i][j][1] = interval_table.ptr[srlist.ptr[i][j] + 1];
+#endif
+	  uint32_t srlist_lookup = srlist.ptr[i][j];
+      ilist.ptr[i][j][0] = interval_table.ptr[srlist_lookup];
+      ilist.ptr[i][j][1] = interval_table.ptr[srlist_lookup + 1];
     }
   }
 
   // Look up positions for each subread
+#ifdef _BENCHMARK
+  mid = clock();
+#endif
+#ifndef _BENCHMARK
   std::cout << "Performing position table lookups" << std::endl;
   std::ofstream results_file;
   results_file.open(argv[5]);
   results_file << num_queries << std::endl;
+#endif
   for (unsigned int i = 0; i < num_queries; i++) {
-    if (i % 10000 == 0) {
+#ifndef _BENCHMARK
+	if (i % 10000 == 0) {
       std::cout << "Query " << i+1 << " out of " << num_queries << std::endl;
     }
-    std::vector<unsigned int>* prev_result = new std::vector<unsigned int>(&(position_table.ptr[ilist.ptr[i][0][0]]), &(position_table.ptr[ilist.ptr[i][0][1]]));
+#endif
+	uint32_t pt_start, pt_end;
+	pt_start = ilist.ptr[i][0][0];
+	pt_end = ilist.ptr[i][0][1];
+    std::vector<unsigned int>* prev_result = new std::vector<unsigned int>(&(position_table.ptr[pt_start]), &(position_table.ptr[pt_end]));
     for (unsigned int j = 1; j < num_subreads_per_query; j++) {
-      std::vector<unsigned int> next_positions (&(position_table.ptr[ilist.ptr[i][j][0]]), &(position_table.ptr[ilist.ptr[i][j][1]]));
+	  uint32_t pt_start = ilist.ptr[i][j][0];
+	  uint32_t pt_end = ilist.ptr[i][j][1];
+      std::vector<unsigned int> next_positions (&(position_table.ptr[pt_start]), &(position_table.ptr[pt_end]));
       std::vector<unsigned int>* result = new std::vector<unsigned int>;
       if (prev_result->size() == 0) {
         break;
@@ -170,13 +193,32 @@ int main (int argc, char** argv) {
       delete prev_result;
       prev_result = result;      
     }
-    
+#ifndef _BENCHMARK
     std::vector<unsigned int>::iterator it;
     for (it = prev_result->begin(); it != prev_result->end(); it++) {
       results_file << *it << ' ';
     }
     results_file << std::endl;
+#endif
     delete prev_result;
+#ifdef _BENCHMARK
+	__asm__(""); //prevent loop from being optimized away by gcc when benchmarking (I hope!)
+				 // see http://stackoverflow.com/questions/7083482/how-to-prevent-compiler-optimization-on-a-small-piece-of-code
+#endif	
   }
+#ifndef _BENCHMARK
   results_file.close();
+#endif
+#ifdef _BENCHMARK
+   end = clock();
+   double time_read, time_sort, time_total;
+   time_read = ((double)(mid-start))/((double)CLOCKS_PER_SEC);
+   time_sort = ((double)(end-mid))/((double)CLOCKS_PER_SEC);
+   time_total = time_read +time_sort;
+   std::cout << "\n\nTotal CPU time (s):\t" << (time_total) << std::endl;
+   std::cout << "Queries per second:\t" << ((double)num_queries/(time_total)) << std::endl;
+   std::cout << "Seconds per query:\t" << ((time_total)/(double)num_queries) << std::endl;
+   std::cout << "Breakdown:\n\tLookup:\t" << time_read << " s\t " << (100.0*time_read/time_total) 
+			 << "%\n\tStitch:\t" << time_sort << " s\t " << (100.0*time_sort/time_total) << "%" << std::endl;
+#endif
 }
