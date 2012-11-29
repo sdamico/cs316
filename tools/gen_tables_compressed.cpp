@@ -28,14 +28,8 @@ using namespace std;
 void* compress1(unsigned int *inputStream, unsigned int inputLength, unsigned char *outputStream, unsigned int *compressedSize) {
 	unsigned int offset = inputStream[0];
 	if (inputLength != 0) {
-		/*cout << "Uncompressed PTE:\t";
-		for (unsigned int i = 0; i < inputLength; i++) {
-			cout << inputStream[i] << "\t";
-		}*/
-		//cout << endl << "  Compressed PTE:\t";
 		unsigned char *curOutput = outputStream;
 		memcpy((void *)curOutput, (const void *)&offset, sizeof(unsigned int));
-		//cout << offset << "w\t";
 		curOutput += sizeof(unsigned int);
 		for (unsigned int i = 1; i < inputLength; i++) {
 			unsigned char delta;
@@ -43,21 +37,17 @@ void* compress1(unsigned int *inputStream, unsigned int inputLength, unsigned ch
 				delta = 0;
 				memcpy((void *)curOutput, (const void *)&delta, sizeof(unsigned char));
 				curOutput += sizeof(unsigned char);
-	//			cout << (int)delta << "b\t";
 				offset = inputStream[i];			
 				memcpy((void *)curOutput, (const void *)&offset, sizeof(unsigned int));
 				curOutput += sizeof(unsigned int);
-	//			cout << offset << "w\t";
 			}
 			else {
 				delta = inputStream[i] - offset;
 				offset = inputStream[i];
-	//			cout << (int)delta << "b\t";
 				memcpy((void *)curOutput, (const void *)&delta, sizeof(unsigned char));
 				curOutput += sizeof(unsigned char);
 			}	
 		}	
-		//cout << endl;
 		*compressedSize = curOutput - outputStream;
 		return curOutput;
 	}
@@ -67,7 +57,7 @@ void* compress1(unsigned int *inputStream, unsigned int inputLength, unsigned ch
 	}	
 }
 
-// write offset, then encode deltas 
+// write offset, then encode deltas 7 bits at a time. the last byte in the delta has the MSB set.
 //
 void* compress2(unsigned int *inputStream, unsigned int inputLength, unsigned char *outputStream, unsigned int *compressedSize) {
 	unsigned int offset = inputStream[0];
