@@ -30,4 +30,10 @@ struct SubReadInterval {
   PositionTableInterval interval;
 };
 
+struct PositionTableResult {
+	Subread sr;
+	uint64_t position;
+	bool last;
+};
+
 #endif // CS316_CORE_DEF_H_

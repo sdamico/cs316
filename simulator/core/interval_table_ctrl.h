@@ -53,7 +53,7 @@ class IntervalTableCtrl : public Sequential {
   // Pointer to the input reader from which to get subread work units.
   InputReader* input_reader_;
   
-  // Pointer to the attached pointer table controller.
+  // Pointer to the attached position table controller.
   PositionTableCtrl* ptc_;
   
   // FIFO containing outstanding interval table ram read requests.

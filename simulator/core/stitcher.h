@@ -11,8 +11,24 @@ class Stitcher : public Sequential {
   Stitcher();
   ~Stitcher();
   void NextClockCycle();
-  void Reset();    
+  void Reset();  
+
+  // Returns true if Stitcher is ready to receive a new position
+  bool ReceiveReady();
+  
+  // Receive and store the interval info for processing
+  void ReceivePosition(SubReadInterval sri);
+
+	// Current read that this stitcher is operating over
+	uint64_t read_id();
+
+	bool done_stitching();
+  
  private:
+
+	uint64_t read_id_;
+
+	bool done_stitching_;
 };
 
 #endif // CS316_CORE_STITCHER_H_
