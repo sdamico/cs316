@@ -11,6 +11,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <cmath>
+#include <stdint.h>
 
 int main (int argc, char** argv) {
   if (argc < 4) {

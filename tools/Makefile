@@ -1,7 +1,7 @@
 CC=g++
 CFLAGS = -g -Wall
 
-all: gen_query_seq gen_ref_seq gen_tables gen_query_error_SNP gen_subread_seq
+all: gen_query_seq gen_ref_seq gen_tables gen_tables_compressed gen_query_error_SNP gen_subread_seq
 
 gen_query_seq: gen_query_seq.o
 	mkdir -p bin/
@@ -14,6 +14,10 @@ gen_ref_seq: gen_ref_seq.o
 gen_tables: gen_tables.o
 	mkdir -p bin/
 	$(CC) $(CFLAGS) gen_tables.o -o bin/gen_tables
+	
+gen_tables_compressed: gen_tables_compressed.o
+	mkdir -p bin/
+	$(CC) $(CFLAGS) gen_tables_compressed.o -o bin/gen_tables_compressed
 
 gen_query_error_SNP: gen_query_error_SNP.o
 	mkdir -p bin/
