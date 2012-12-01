@@ -1,6 +1,6 @@
 #include <iostream>
 #include <fstream>
-#include "position_table_ctrl_ITCtest.h"
+#include "position_table_ctrl.h"
 #include "interval_table_ctrl.h"
 #include "input_reader.h"
 #include "def.h"
@@ -30,6 +30,7 @@ void Clock() {
 int main (int argc, char** argv) {
   if (argc < 3) {
     std::cout << "Usage: " << argv[0] << " <Subread Filename> <Interval Table Filename>" << std::endl;
+    exit(1);
   }
   
   // Read the subread parameters from the file
@@ -114,8 +115,8 @@ int main (int argc, char** argv) {
   uint64_t start_cycle = input_reader->cycle_count();
   while (!input_reader->Done()) {
     for (unsigned int i = 0; i < num_itcs; i++) {
-      if (ptcs[i]->received() == true) {
-        SubReadInterval sri = ptcs[i]->GetSRI();
+      if (itcs[i]->IntervalReady() == true) {
+        SubReadInterval sri = itcs[i]->IntervalData();
         
         // Check subread information
         assert(sri.sr.read_id == read_counters[i] * num_parallel_reads + i / num_subreads_per_read);
