@@ -31,20 +31,15 @@ using namespace std;
  * G : 10b
  * T : 11b
  */
-unsigned long long seq2int(string seq) {
+unsigned long long seq2int(list<unsigned char>* seq) {
   unsigned long long seq_int = 0;
   
-  string::iterator it;
-  for (it = seq.begin(); it != seq.end(); it++) {
+  list<unsigned char>::iterator it;
+  for (it = seq->begin(); it != seq->end(); it++) {
     seq_int <<= 2;
-    switch (*it) {
-      case 'A' : seq_int += 0; break;
-      case 'C' : seq_int += 1; break;
-      case 'G' : seq_int += 2; break;
-      case 'T' : seq_int += 3; break;
-      default : break;
-    }
+    seq_int += *it;
   }
+  
   return seq_int;
 }
 
@@ -58,19 +53,17 @@ int main (int argc, char* argv[]) {
   unsigned int ref_seq_length;
   ifstream ref_seq_file;
   ref_seq_file.open(argv[1]);
-  
-  char temp_buf[256];
-  ref_seq_file.getline(temp_buf, 256);
-  ref_seq_length = atoi(temp_buf);
+  ref_seq_file.read((char *)(&ref_seq_length), sizeof(unsigned int));
   
   // Compute number of occurrences for each seed
   cout << "Computing seed occurrences" << endl;
   unsigned int seed_length = (unsigned int) atoi(argv[2]);
   unsigned int num_seeds = 1 << (2 * seed_length);
+  unsigned long long seed_mask = 0xFFFFFFFFFFFFFFFF >> (64 - (seed_length * 2));
   
   tr1::unordered_map<unsigned long long, int> seed_count;
   
-  string cur_seed;
+  unsigned long long seed = 0;
   unsigned char quad;
   unsigned int char_num;
   unsigned key_count = 0;
@@ -78,19 +71,15 @@ int main (int argc, char* argv[]) {
     if (i % 10000000 == 0) {
       cout << i << endl;
     }
-//    if (i % 4 == 0) {
-//      quad = ref_seq_file.get();
-//      char_num = 0;
-//    }
-//    unsigned char nucleotide = (quad & (3 << (3-char_num)*2)) >> (3-char_num)*2;
-    unsigned char nucleotide = ref_seq_file.get();
-    cur_seed.push_back(nucleotide);
-    
-    if (cur_seed.size() > seed_length) {
-      cur_seed = cur_seed.substr(1, seed_length);
+    if (i % 4 == 0) {
+      quad = ref_seq_file.get();
+      char_num = 0;
     }
-    if (cur_seed.size() == seed_length) {
-      unsigned long long seed = seq2int(cur_seed);
+    unsigned char nucleotide = (quad & (3 << (3-char_num)*2)) >> (3-char_num)*2;
+    seed <<= 2;
+    seed += nucleotide;
+    seed &= seed_mask;
+    if (i >= seed_length - 1) {
       if (seed_count.count(seed) == 0) {
         seed_count[seed] = 1;
         key_count++;
@@ -99,7 +88,36 @@ int main (int argc, char* argv[]) {
       }
     }
     char_num++;
-  }
+  }  
+  /*list<unsigned char> cur_seed;
+  unsigned char quad;
+  unsigned int char_num;
+  unsigned key_count = 0;
+  for (unsigned int i = 0; i < ref_seq_length; i++) {
+    if (i % 10000000 == 0) {
+      cout << i << endl;
+    }
+    if (i % 4 == 0) {
+      quad = ref_seq_file.get();
+      char_num = 0;
+    }
+    unsigned char nucleotide = (quad & (3 << (3-char_num)*2)) >> (3-char_num)*2;
+    cur_seed.push_back(nucleotide);
+    
+    if (cur_seed.size() > seed_length) {
+      cur_seed.pop_front();
+    }
+    if (cur_seed.size() == seed_length) {
+      unsigned long long seed = seq2int(&cur_seed);
+      if (seed_count.count(seed) == 0) {
+        seed_count[seed] = 1;
+        key_count++;
+      } else {
+        seed_count[seed]++;
+      }
+    }
+    char_num++;
+  }*/
   ref_seq_file.close();
   
   // Compute histogram
@@ -124,9 +142,11 @@ int main (int argc, char* argv[]) {
   }
   
   key_count = 0;
+  unsigned long long avg_occurrences_sum = 0;
   for (tr1::unordered_map<unsigned long long, int>::iterator it = seed_count.begin(); it != seed_count.end(); it++) {
     key_count++;
     unsigned int count = it->second;
+    avg_occurrences_sum += count;
     for (int j = 0; j < NUM_BINS; j++) {
       if (count >= hist_low[j] && count <= hist_high[j]) {
         hist_seed[j]++;
@@ -143,5 +163,5 @@ int main (int argc, char* argv[]) {
       cout << hist_low[i] << "-" << hist_high[i] << "\t";
     }
     cout << hist_seed[i] << "\t" << hist_read[i] << endl;
-  }  
+  }
 }
