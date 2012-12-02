@@ -94,7 +94,9 @@ void PositionTableCtrl::NextClockCycle() {
     sri_ = itc_->IntervalData();
 		
     position_table_ram_fifo_->WriteRequest(sri_);
-    position_table_ram_->ReadRequest(GetRamAddress(sri_.interval.start), ptc_id_);
+		if(sri_.interval.length > 0) {
+    	position_table_ram_->ReadRequest(GetRamAddress(sri_.interval.start), ptc_id_);
+		}
    	sri_offset_ = (sri_offset_ + 1) % sri_.interval.length;
   }  
   else if (position_table_ram_fifo_->Size() + output_fifo_->Size() < POSITION_TABLE_CTRL_FIFO_LENGTH && sri_offset_ > 0 && position_table_ram_->IsPortReady(ptc_id_) == true) {
@@ -108,11 +110,22 @@ void PositionTableCtrl::NextClockCycle() {
 	// Process the lookup when it is ready from the position table ram module.
 	// If it's the last lookup for a given subread, pop the subread info off
 	// the position table RAM fifo
-  if (position_table_ram_->ReadReady(ptc_id_)) {
+	SubReadInterval sri = position_table_ram_fifo_->read_data();
+	
+	if (!position_table_ram_fifo_->IsEmpty() &&
+      (position_table_ram_fifo_->read_data().interval.length == 0)) {
+    position_table_ram_fifo_->ReadRequest();
+		PositionTableResult ptr;
+		ptr.sr = sri.sr;
+		ptr.position = 0;
+		ptr.last = true;
+		ptr.empty = true;
+		output_fifo_->WriteRequest(ptr);
+	}
+  else if (position_table_ram_->ReadReady(ptc_id_)) {
     uint32_t position = position_table_ram_->ReadData(ptc_id_);
     position_table_ram_fifo_->ReadRequest();
 
-    SubReadInterval sri = position_table_ram_fifo_->read_data();
     bool last_position = false;
     if (output_position_index_ == (sri.interval.length-1)) {
 			// Tells stitcher this is the last position for this subread
@@ -126,6 +139,7 @@ void PositionTableCtrl::NextClockCycle() {
 	  ptr.sr = sri.sr;
 	  ptr.position = position;
 		ptr.last = last_position;
+		ptr.empty = false;
 /*		std::cout<<"out "<<ptc_id_<<" read id: "<<ptr.sr.read_id<<std::endl;
 		std::cout<<"out "<<ptc_id_<<" read offset: "<<ptr.sr.subread_offset<<std::endl;
 

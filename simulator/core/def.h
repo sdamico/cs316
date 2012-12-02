@@ -34,6 +34,7 @@ struct PositionTableResult {
 	SubRead sr;
 	uint64_t position;
 	bool last;
+	bool empty;
 };
 
 #endif // CS316_CORE_DEF_H_
