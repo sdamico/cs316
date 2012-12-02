@@ -87,16 +87,15 @@ void PositionTableCtrl::NextClockCycle() {
       position_table_ram_->IsPortReady(ptc_id_) == true &&
 			sri_offset_ == 0) {
     sri_ = itc_->IntervalData();
+		std::cout<<sri_.sr.read_id<<std::endl;
     position_table_ram_fifo_->WriteRequest(sri_.sr);
     position_table_ram_->ReadRequest(GetRamAddress(sri_.interval.start), ptc_id_);
-   	sri_offset_++; 
+   	sri_offset_ = (sri_offset_ + 1) % sri_.sr.length;
   }  
-  if (sri_offset_ > 0 && position_table_ram_->IsPortReady(ptc_id_) == true) {
-		if(sri_offset_ == sri_.sr.length) {
-			sri_offset_ = 0;
-		}
+  else if (position_table_ram_fifo_->Size() + output_fifo_->Size() < POSITION_TABLE_CTRL_FIFO_LENGTH && sri_offset_ > 0 && position_table_ram_->IsPortReady(ptc_id_) == true) {
+    position_table_ram_fifo_->WriteRequest(sri_.sr);		
 		position_table_ram_->ReadRequest(GetRamAddress(sri_.interval.start+sri_offset_), ptc_id_);
-  	sri_offset_++;
+   	sri_offset_ = (sri_offset_ + 1) % sri_.sr.length;
 	}
 
 
@@ -118,7 +117,6 @@ void PositionTableCtrl::NextClockCycle() {
 	  ptr.sr = sr;
 	  ptr.position = position;
 		ptr.last = last_position;
-    
 		output_fifo_->WriteRequest(ptr);
   }
 

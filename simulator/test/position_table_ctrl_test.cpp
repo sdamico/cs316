@@ -12,7 +12,7 @@
 
 #define NUM_RAMS 8
 #define RAM_ADDRESS_WIDTH 8
-#define RAM_ADDRESS_WIDTH_PTC 16
+#define RAM_ADDRESS_WIDTH_PTC 8
 #define RAM_LATENCY 2
 
 InputReader* input_reader;
@@ -27,6 +27,7 @@ unsigned int num_ptcs;
 void Clock() {
   input_reader->NextClockCycle();
   interval_table_ram->NextClockCycle();
+	position_table_ram->NextClockCycle();
   for (unsigned int i = 0; i < num_ptcs; i++) {
     ptcs[i]->NextClockCycle();
   }
@@ -170,8 +171,8 @@ int main (int argc, char** argv) {
         assert(ptr.sr.subread_offset == i % num_subreads_per_read);
         assert(ptr.sr.length == subread_length);
         assert(ptr.sr.data == subread_list[i].front());*/
-				std::cout<<"read id: "<<ptr.sr.read_id<<", offset: "<<ptr.sr.subread_offset<<", position: "<<ptr.position<<", last: "<<ptr.last;
-        subread_list[i].pop();
+				std::cout<<"read id: "<<ptr.sr.read_id<<", offset: "<<ptr.sr.subread_offset<<", position: "<<ptr.position<<", last: "<<ptr.last<<std::endl;
+        //subread_list[i].pop();
         read_counters[i]++;
         
         // Check interval information
