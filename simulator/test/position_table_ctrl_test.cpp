@@ -108,13 +108,17 @@ int main (int argc, char** argv) {
 
   // Build the position table
   unsigned int position_table_size;
+  unsigned int ref_seq_length;
+  unsigned int seed_length;
   std::ifstream position_table_file;
   position_table_file.open(argv[3]);
-  position_table_file.read((char *)(&position_table_size), sizeof(unsigned int));
-  uint32_t* position_table = new uint32_t[position_table_size];
-  position_table_file.read((char *)position_table, position_table_size * sizeof(uint32_t));
+  position_table_file.read((char *)(&ref_seq_length), sizeof(unsigned int));
+  position_table_file.read((char *)(&seed_length), sizeof(unsigned int));
+  uint32_t *position_table = new uint32_t[ref_seq_length - seed_length + 1];
+  position_table_size = ref_seq_length - seed_length + 1;
+  position_table_file.read((char *)(position_table), (ref_seq_length - seed_length + 1) * sizeof(unsigned int));
   position_table_file.close();
-
+ 
   // Build the RAM module preload array
   unsigned int position_table_ram_size = NUM_RAMS * pow(2, RAM_ADDRESS_WIDTH_PTC);
   uint32_t* position_table_ram_array = new uint32_t[position_table_ram_size];
@@ -131,7 +135,7 @@ int main (int argc, char** argv) {
   ram_id = 0;
   ram_addr = 0;
   for (unsigned int i = 0; i < position_table_size; i++) {
-    position_table_ram_array[(ram_id << RAM_ADDRESS_WIDTH_PTC) + ram_addr] = interval_table[i];
+    position_table_ram_array[(ram_id << RAM_ADDRESS_WIDTH_PTC) + ram_addr] = position_table[i];
     if (ram_addr == ram_num_elem_ptc[ram_id] - 1) {
       ram_id++;
       ram_addr = 0;
@@ -161,23 +165,34 @@ int main (int argc, char** argv) {
     read_counters[i] = 0;
   }
   uint64_t start_cycle = input_reader->cycle_count();
+	
+	unsigned int *ptc_offsets = (unsigned int*)calloc(num_ptcs, sizeof(unsigned int));
+
+
   while (!input_reader->Done()) {
     for (unsigned int i = 0; i < num_ptcs; i++) {
       if (ptcs[i]->PositionReady() == true) {
         PositionTableResult ptr = ptcs[i]->PositionData();
-        
+         
         // Check subread information
-        /*assert(ptr.sr.read_id == read_counters[i] * num_parallel_reads + i / num_subreads_per_read);
-        assert(ptr.sr.subread_offset == i % num_subreads_per_read);
-        assert(ptr.sr.length == subread_length);
-        assert(ptr.sr.data == subread_list[i].front());*/
-				std::cout<<"read id: "<<ptr.sr.read_id<<", offset: "<<ptr.sr.subread_offset<<", position: "<<ptr.position<<", last: "<<ptr.last<<std::endl;
-        //subread_list[i].pop();
+
+        //assert(ptr.sr.read_id == read_counters[i] * num_parallel_reads + i / num_subreads_per_read);
+				//std::cout<<"read id: "<<ptr.sr.read_id<<", offset: "<<ptr.sr.subread_offset<<", position: "<<ptr.position<<", last: "<<ptr.last<<std::endl;
         read_counters[i]++;
         
+				//std::cout<<"ptc: "<<i<<std::endl;
+				//interval_table[sri.sr.data]
         // Check interval information
-        //assert(sri.interval.start == interval_table[sri.sr.data]);
+        /*std::cout<<"offset: "<<ptc_offsets[i]<<std::endl;
+        std::cout<<"predicted interval: "<<interval_table[ptr.sr.data]<<std::endl;
+				std::cout<<"predicted position: "<<position_table[interval_table[ptr.sr.data] + ptc_offsets[i]]<<std::endl;
+        std::cout<<"position: "<<ptr.position<<std::endl;*/
+				assert(ptr.position == position_table[interval_table[ptr.sr.data] + ptc_offsets[i]]);
         //assert(sri.interval.length == interval_table[sri.sr.data + 1] - interval_table[sri.sr.data]);
+				ptc_offsets[i]++;
+				if(ptr.last) {
+					ptc_offsets[i] = 0;
+				}
       }
     }
     Clock();

@@ -45,11 +45,14 @@ class PositionTableCtrl : public Sequential {
 	// Position within subread interval
 	uint32_t sri_offset_;
 
+	// Position index for a given subread
+	uint32_t output_position_index_;
+
 	// Pointer to upstream ITC
 	IntervalTableCtrl *itc_;
 
 	// Fifo for storing in-flight requests from position table
-  Fifo<SubRead>* position_table_ram_fifo_;
+  Fifo<SubReadInterval>* position_table_ram_fifo_;
 
 	// FIFO containing subread and position info ready to be sent to stitchers
   Fifo<PositionTableResult>* output_fifo_;
@@ -68,8 +71,10 @@ PositionTableCtrl::PositionTableCtrl(uint64_t ptc_id,
 	itc_ = itc;
 	position_table_ram_ = position_table_ram;
 	ComputeRamNumElem(position_table_size);
-	position_table_ram_fifo_ = new Fifo<SubRead>(POSITION_TABLE_CTRL_FIFO_LENGTH);
+	position_table_ram_fifo_ = new Fifo<SubReadInterval>(POSITION_TABLE_CTRL_FIFO_LENGTH);
 	output_fifo_ = new Fifo<PositionTableResult>(INTERVAL_TABLE_CTRL_FIFO_LENGTH);
+	output_position_index_ = 0;
+	sri_offset_ = 0;
 }
 
 
@@ -87,15 +92,16 @@ void PositionTableCtrl::NextClockCycle() {
       position_table_ram_->IsPortReady(ptc_id_) == true &&
 			sri_offset_ == 0) {
     sri_ = itc_->IntervalData();
-		std::cout<<sri_.sr.read_id<<std::endl;
-    position_table_ram_fifo_->WriteRequest(sri_.sr);
+		
+    position_table_ram_fifo_->WriteRequest(sri_);
     position_table_ram_->ReadRequest(GetRamAddress(sri_.interval.start), ptc_id_);
-   	sri_offset_ = (sri_offset_ + 1) % sri_.sr.length;
+   	sri_offset_ = (sri_offset_ + 1) % sri_.interval.length;
   }  
   else if (position_table_ram_fifo_->Size() + output_fifo_->Size() < POSITION_TABLE_CTRL_FIFO_LENGTH && sri_offset_ > 0 && position_table_ram_->IsPortReady(ptc_id_) == true) {
-    position_table_ram_fifo_->WriteRequest(sri_.sr);		
+    position_table_ram_fifo_->WriteRequest(sri_);		
 		position_table_ram_->ReadRequest(GetRamAddress(sri_.interval.start+sri_offset_), ptc_id_);
-   	sri_offset_ = (sri_offset_ + 1) % sri_.sr.length;
+
+   	sri_offset_ = (sri_offset_ + 1) % sri_.interval.length;
 	}
 
 
@@ -104,19 +110,27 @@ void PositionTableCtrl::NextClockCycle() {
 	// the position table RAM fifo
   if (position_table_ram_->ReadReady(ptc_id_)) {
     uint32_t position = position_table_ram_->ReadData(ptc_id_);
-		bool last_position = false;
-    if (sri_offset_ == (sri_.interval.length-1)) {
+    position_table_ram_fifo_->ReadRequest();
+
+    SubReadInterval sri = position_table_ram_fifo_->read_data();
+    bool last_position = false;
+    if (output_position_index_ == (sri.interval.length-1)) {
 			// Tells stitcher this is the last position for this subread
 			last_position = true;
-    } 
+			output_position_index_ = 0;
+    } else {
+			output_position_index_++;
+		}
 
-    SubRead sr = position_table_ram_fifo_->read_data();
-    position_table_ram_fifo_->ReadRequest();
-      
     PositionTableResult ptr;
-	  ptr.sr = sr;
+	  ptr.sr = sri.sr;
 	  ptr.position = position;
 		ptr.last = last_position;
+/*		std::cout<<"out "<<ptc_id_<<" read id: "<<ptr.sr.read_id<<std::endl;
+		std::cout<<"out "<<ptc_id_<<" read offset: "<<ptr.sr.subread_offset<<std::endl;
+
+		std::cout<<"out "<<ptc_id_<<" position: "<<ptr.position<<std::endl;
+		std::cout<<"out "<<ptr.last<<std::endl;*/
 		output_fifo_->WriteRequest(ptr);
   }
 
