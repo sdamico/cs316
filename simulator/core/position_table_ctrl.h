@@ -54,6 +54,7 @@ class PositionTableCtrl : public Sequential {
 	// FIFO containing subread and position info ready to be sent to stitchers
   Fifo<PositionTableResult>* output_fifo_;
 
+	// Number of elements in the RAM
 	unsigned int *ram_num_elem_;
 	
 };
