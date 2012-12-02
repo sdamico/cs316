@@ -11,6 +11,7 @@
 //                     Fifo::ReadRequest()    - Request to read data from FIFO
 //                     Fifo::NextClockCycle() - Advance to the next clock cycle
 //                     Fifo::Reset()          - Reset FIFO state
+//                     Fifo::read_data()      - Get the value at head of FIFO
 // Revision History  :
 //     Albert Ng      Nov 13 2012     Initial Revision
 //     Albert Ng      Nov 14 2012     Added read_ready and IsAlmostFull()

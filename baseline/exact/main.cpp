@@ -136,6 +136,8 @@ int main (int argc, char** argv) {
   ReadPositionTable(argv[3], &position_table);
   
   // Look up intervals for each subread
+  unsigned int num_it_accesses = 0;
+  unsigned int num_pt_accesses = 0;
 #ifndef _BENCHMARK
   std::cout << "Performing interval table lookups" << std::endl;
 #endif
@@ -155,9 +157,13 @@ int main (int argc, char** argv) {
 #ifndef _BENCHMARK
       assert(srlist.ptr[i][j] < interval_table.length - 1);
 #endif
-	  uint32_t srlist_lookup = srlist.ptr[i][j];
-      ilist.ptr[i][j][0] = interval_table.ptr[srlist_lookup];
-      ilist.ptr[i][j][1] = interval_table.ptr[srlist_lookup + 1];
+      uint32_t srlist_lookup = srlist.ptr[i][j];
+      unsigned int* it = interval_table.ptr;
+      uint32_t lookup1 = it[srlist_lookup];
+      uint32_t lookup2 = it[srlist_lookup + 1];
+      ilist.ptr[i][j][0] = lookup1;
+      ilist.ptr[i][j][1] = lookup2;
+      num_it_accesses+=2;
     }
   }
 
@@ -173,18 +179,32 @@ int main (int argc, char** argv) {
 #endif
   for (unsigned int i = 0; i < num_queries; i++) {
 #ifndef _BENCHMARK
-	if (i % 10000 == 0) {
+    if (i % 10000 == 0) {
       std::cout << "Query " << i+1 << " out of " << num_queries << std::endl;
     }
 #endif
-	uint32_t pt_start, pt_end;
-	pt_start = ilist.ptr[i][0][0];
-	pt_end = ilist.ptr[i][0][1];
-    std::vector<unsigned int>* prev_result = new std::vector<unsigned int>(&(position_table.ptr[pt_start]), &(position_table.ptr[pt_end]));
+    uint32_t pt_start, pt_end;
+    pt_start = ilist.ptr[i][0][0];
+    pt_end = ilist.ptr[i][0][1];
+    std::vector<unsigned int>* prev_result = new std::vector<unsigned int>(pt_end - pt_start);
+    for (unsigned int j = 0; j < prev_result->size(); j++) {
+      unsigned int* pt = position_table.ptr;
+      unsigned int val = pt[j + pt_start];
+      num_pt_accesses++;
+      (*prev_result)[j] = val;
+    }
+
     for (unsigned int j = 1; j < num_subreads_per_query; j++) {
-	  uint32_t pt_start = ilist.ptr[i][j][0];
-	  uint32_t pt_end = ilist.ptr[i][j][1];
-      std::vector<unsigned int> next_positions (&(position_table.ptr[pt_start]), &(position_table.ptr[pt_end]));
+      pt_start = ilist.ptr[i][j][0];
+      pt_end = ilist.ptr[i][j][1];
+      std::vector<unsigned int> next_positions(pt_end - pt_start);
+      for (unsigned int k = 0; k < next_positions.size(); k++) {
+        unsigned int* pt = position_table.ptr;
+        unsigned int val = pt[k + pt_start];
+        num_pt_accesses++;
+        next_positions[k] = val;
+      }
+      
       std::vector<unsigned int>* result = new std::vector<unsigned int>;
       if (prev_result->size() == 0) {
         break;
@@ -221,4 +241,6 @@ int main (int argc, char** argv) {
    std::cout << "Breakdown:\n\tLookup:\t" << time_read << " s\t " << (100.0*time_read/time_total) 
 			 << "%\n\tStitch:\t" << time_sort << " s\t " << (100.0*time_sort/time_total) << "%" << std::endl;
 #endif
+  std::cout << "Interval table accesses: " << num_it_accesses << std::endl;
+  std::cout << "Position table accesses: " << num_pt_accesses << std::endl;
 }

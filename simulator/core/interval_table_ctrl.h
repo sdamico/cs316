@@ -33,6 +33,13 @@ class IntervalTableCtrl : public Sequential {
                     RamModule<uint32_t>* interval_table_ram, PositionTableCtrl* ptc,
                     unsigned int interval_table_size);
   ~IntervalTableCtrl();
+  
+  // Checks if an interval is ready for the PTC
+  bool IntervalReady();
+  
+  // Gets the next ready interval
+  SubReadInterval IntervalData();
+  
   void NextClockCycle();
   void Reset();
  private:
@@ -99,6 +106,16 @@ IntervalTableCtrl::~IntervalTableCtrl() {
   delete output_fifo_;
 }
 
+bool IntervalTableCtrl::IntervalReady() {
+  return !output_fifo_->IsEmpty();
+}
+
+SubReadInterval IntervalTableCtrl::IntervalData() {
+  SubReadInterval sri = output_fifo_->read_data();
+  output_fifo_->ReadRequest();
+  return sri;
+}
+
 void IntervalTableCtrl::NextClockCycle() {
   Sequential::NextClockCycle();
   
@@ -150,14 +167,6 @@ void IntervalTableCtrl::NextClockCycle() {
       
       first_lookup_read_ = true;
     }
-  }
-  
-  // Send the next available subread interval when the position table controller is
-  // ready to receive.
-  if (ptc_->ReceiveReady() && !output_fifo_->IsEmpty()) {
-    SubReadInterval sri = output_fifo_->read_data();
-    output_fifo_->ReadRequest();
-    ptc_->ReceiveInterval(sri);
   }
   
   interval_table_ram_fifo_->NextClockCycle();
