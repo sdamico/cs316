@@ -188,10 +188,14 @@ int main (int argc, char** argv) {
 				std::cout<<"predicted position: "<<position_table[interval_table[ptr.sr.data] + ptc_offsets[i]]<<std::endl;
         std::cout<<"position: "<<ptr.position<<std::endl;*/
 				assert(ptr.position == position_table[interval_table[ptr.sr.data] + ptc_offsets[i]]);
+				assert(ptc_offsets[i] < (interval_table[ptr.sr.data+1] - interval_table[ptr.sr.data]));
         //assert(sri.interval.length == interval_table[sri.sr.data + 1] - interval_table[sri.sr.data]);
-				ptc_offsets[i]++;
 				if(ptr.last) {
+					assert(ptc_offsets[i] == (interval_table[ptr.sr.data+1] - interval_table[ptr.sr.data] - 1));
 					ptc_offsets[i] = 0;
+				}
+				else {
+					ptc_offsets[i]++;
 				}
       }
     }
