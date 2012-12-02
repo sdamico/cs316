@@ -2,7 +2,7 @@ CC=g++
 CFLAGS = -g -Wall
 CORE_DIR = ../core
 
-all: fifo ram ram_module input_reader interval_table_ctrl position_table_ctrl
+all: fifo ram input_reader interval_table_ctrl position_table_ctrl ram_module
 
 fifo: fifo_test.o
 	mkdir -p bin/
@@ -15,7 +15,7 @@ ram: ram_test.o
 	mkdir -p bin/
 	$(CC) $(CFLAGS) ram_test.o -o bin/ram_test
 
-ram_test.o: ram_test.cpp
+ram_test.o: ram_test.cpp ../core/ram.h
 	$(CC) $(CFLAGS) -c ram_test.cpp -I $(CORE_DIR)
 
 ram_module: ram_module_test.o
