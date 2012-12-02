@@ -31,7 +31,7 @@ struct SubReadInterval {
 };
 
 struct PositionTableResult {
-	Subread sr;
+	SubRead sr;
 	uint64_t position;
 	bool last;
 };

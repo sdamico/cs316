@@ -8,6 +8,7 @@
 #include <list>
 #include <stdint.h>
 #include <cmath>
+#include <stdlib.h>
 
 #define NUM_RAMS 8
 #define RAM_ADDRESS_WIDTH 8
@@ -96,16 +97,10 @@ int main (int argc, char** argv) {
   interval_table_ram = new RamModule<uint32_t>(NUM_RAMS, num_itcs, RAM_ADDRESS_WIDTH, RAM_LATENCY);
   interval_table_ram->Preload(interval_table_ram_array, interval_table_ram_size, false);
   
-  // Instantiate test position table controllers
-  ptcs = new PositionTableCtrl*[num_itcs];
-  for (unsigned int i = 0; i < num_itcs; i++) {
-    ptcs[i] = new PositionTableCtrl();
-  }
-  
   // Instantiate interval table controllers
   itcs = new IntervalTableCtrl*[num_itcs];
   for (unsigned int i = 0; i < num_itcs; i++) {
-    itcs[i] = new IntervalTableCtrl(i, input_reader, interval_table_ram, ptcs[i], interval_table_size);
+    itcs[i] = new IntervalTableCtrl(i, input_reader, interval_table_ram, interval_table_size);
   }
   
   uint64_t* read_counters = new uint64_t[num_itcs];

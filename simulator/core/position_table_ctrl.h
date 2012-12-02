@@ -5,34 +5,32 @@
 
 #include <stdint.h>
 #include "sequential.h"
+#include "position_table_ctrl.h"
+#include "fifo.h"
+#include "params.h"
 #include "def.h"
+#include "input_reader.h"
+#include "interval_table_ctrl.h"
 
 class PositionTableCtrl : public Sequential {
  public:
-  PositionTableCtrl(uint64_t ptc_id, RamModule<uint32_t> *position_table_ram,
-										Stitcher *stitchers, uint32_t num_stitchers,
-										position_table_size);
+  PositionTableCtrl(uint64_t ptc_id, IntervalTableCtrl *itc, 
+										RamModule<uint32_t> *position_table_ram,
+										unsigned int position_table_size);
   ~PositionTableCtrl();
   void NextClockCycle();
   void Reset();
+	bool PositionReady();
+	PositionTableResult PositionData();
   
   // Position Table Controller interface function stubs
     
  private:
-	// Pointer to all stitchers
-	Stitcher *stitchers_;
-
-	// Number of stitchers
-	uint32_t num_stitchers_;
-
-	// Current stitcher being used
-	uint32_t cur_stitcher_;
-
 	// Compute number of position table elements for each ram
 	void ComputeRamNumElem(unsigned int position_table_size);
 	
 	// Compute the position table ram address for a position
-	uint64_t GetRamAddress(uint32_t position);
+	uint32_t GetRamAddress(uint32_t position);
 
 	// ID number for this position table controller.  Used as port numbers to
 	// the input reader and position table ram module
@@ -47,50 +45,56 @@ class PositionTableCtrl : public Sequential {
 	// Position within subread interval
 	uint32_t sri_offset_;
 
+	// Pointer to upstream ITC
+	IntervalTableCtrl *itc_;
+
 	// Fifo for storing in-flight requests from position table
   Fifo<SubRead>* position_table_ram_fifo_;
 
 	// FIFO containing subread and position info ready to be sent to stitchers
   Fifo<PositionTableResult>* output_fifo_;
+
+	unsigned int *ram_num_elem_;
 	
 };
 
 
 PositionTableCtrl::PositionTableCtrl(uint64_t ptc_id,
-																		 RamModule<uint64_t> *position_table_ram,
-																		 Stitcher *stitchers,
-																		 uint32_t num_stitchers,
-																		 position_table_size) {
+																		 IntervalTableCtrl *itc,
+																		 RamModule<uint32_t> *position_table_ram,
+																		 unsigned int position_table_size) {
 	ptc_id_ = ptc_id;
+	itc_ = itc;
 	position_table_ram_ = position_table_ram;
-	stitchers_ = stitchers;
-	num_stitchers_ = num_stitchers;
 	ComputeRamNumElem(position_table_size);
+	position_table_ram_fifo_ = new Fifo<SubRead>(POSITION_TABLE_CTRL_FIFO_LENGTH);
+	output_fifo_ = new Fifo<PositionTableResult>(INTERVAL_TABLE_CTRL_FIFO_LENGTH);
 }
 
 
 PositionTableCtrl::~PositionTableCtrl() {
+	delete output_fifo_;
+	delete position_table_ram_fifo_;
 }
 
 
 void PositionTableCtrl::NextClockCycle() {
 	Sequential::NextClockCycle();
 
-  if (itc_->interval_ready() &&
+  if (itc_->IntervalReady() &&
       position_table_ram_fifo_->Size() + output_fifo_->Size() < POSITION_TABLE_CTRL_FIFO_LENGTH &&
       position_table_ram_->IsPortReady(ptc_id_) == true &&
 			sri_offset_ == 0) {
-    sri_ = itc_->interval();
-
-    position_table_ram_fifo_->WriteRequest(sri);
-    position_table_ram_->ReadRequest(GetRamAddress(sri_.sr.start), ptc_id_);
+    sri_ = itc_->IntervalData();
+    position_table_ram_fifo_->WriteRequest(sri_.sr);
+    position_table_ram_->ReadRequest(GetRamAddress(sri_.interval.start), ptc_id_);
    	sri_offset_++; 
   }  
   if (sri_offset_ > 0 && position_table_ram_->IsPortReady(ptc_id_) == true) {
 		if(sri_offset_ == sri_.sr.length) {
-			sri_offset_ == 0;
+			sri_offset_ = 0;
 		}
-		position_table_ram_->ReadRequest(GetRamAddress(sri_.sr.start+sri_offset_), itc_id_);
+		position_table_ram_->ReadRequest(GetRamAddress(sri_.interval.start+sri_offset_), ptc_id_);
   	sri_offset_++;
 	}
 
@@ -99,14 +103,14 @@ void PositionTableCtrl::NextClockCycle() {
 	// If it's the last lookup for a given subread, pop the subread info off
 	// the position table RAM fifo
   if (position_table_ram_->ReadReady(ptc_id_)) {
-    uint64_t lookup_data = position_table_ram_->ReadData(ptc_id_);
+    uint32_t position = position_table_ram_->ReadData(ptc_id_);
 		bool last_position = false;
     if (sri_offset_ == (sri_.interval.length-1)) {
 			// Tells stitcher this is the last position for this subread
 			last_position = true;
     } 
 
-    uint64_t position = position_table_ram_fifo_->read_data();
+    SubRead sr = position_table_ram_fifo_->read_data();
     position_table_ram_fifo_->ReadRequest();
       
     PositionTableResult ptr;
@@ -123,6 +127,18 @@ void PositionTableCtrl::NextClockCycle() {
 }
 
 void PositionTableCtrl::Reset() {
+	output_fifo_->Reset();
+	position_table_ram_fifo_->Reset();
+}
+
+bool PositionTableCtrl::PositionReady() {
+  return !output_fifo_->IsEmpty();
+}
+
+PositionTableResult PositionTableCtrl::PositionData() {
+  PositionTableResult result = output_fifo_->read_data();
+  output_fifo_->ReadRequest();
+  return result;
 }
 
 void PositionTableCtrl::ComputeRamNumElem(unsigned int position_table_size) {
