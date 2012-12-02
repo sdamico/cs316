@@ -12,14 +12,19 @@ template <typename T>
 struct RamRequest {
   uint64_t address;
   T data;
-  uint64_t age;
+  int64_t wait_cycles;
 };
+
+struct BankState {
+  uint64_t latency;
+  uint64_t open_row;
+}
 
 template <typename T>
 class Ram : public Sequential {
  public:
   Ram();
-  Ram(uint64_t address_width, uint8_t latency);
+  Ram(uint64_t addr_row_width, addr_col_width, addr_bank_width, uint8_t latency);
   ~Ram();
   void NextClockCycle();
   void Reset();
@@ -35,6 +40,14 @@ class Ram : public Sequential {
   uint8_t latency_;
   T read_data_;
   bool read_ready_;
+  
+  
+  
+  // NEW STUFF
+  uint64_t addr_row_width_;
+  uint64_t addr_col_width_;
+  uint64_t addr_bank_width_;
+  BankState* bank_states_;
 };
 
 template <typename T>
@@ -43,18 +56,28 @@ Ram<T>::Ram() {
 }
 
 template <typename T>
-Ram<T>::Ram(uint64_t address_width, uint8_t latency) {
+Ram<T>::Ram(uint64_t addr_row_width, addr_col_width, addr_bank_width, uint8_t latency) {
   latency_ = latency;
-  address_width_ = address_width;
+  addr_row_width_ = addr_row_width;
+  addr_col_width_ = addr_col_width;
+  addr_bank_width_ = addr_bank_width;
   data_ = new T[(int) pow(2, address_width)];
   read_ready_ = false;
+  
+  uint64_t num_banks = pow(2, addr_bank_width_);
+  bank_states_ = new BankState[num_banks];
+  for (unsigned int i = 0; i < num_banks; i++) {
+    bank_states_[i].latency = 0;
+    bank_states_[i].open_row = -1;
+  }
 }
 
 template <typename T>
 Ram<T>::~Ram() {
   if (address_width_ > 0) {
-    delete data_;
+    delete[] data_;
   }
+  delete[] bank_states_;
 }
 
 template <typename T>
@@ -63,6 +86,13 @@ void Ram<T>::NextClockCycle() {
   read_ready_ = false;
   
   if(!read_queue_.empty()) {
+    if (read_queue_.front().wait_cycles <= 0) {
+      read_queue_.pop();
+      read_ready_ = true;
+      read_data_ = data_[ram_req.address];
+    }
+    
+    
     if((read_queue_.front().age + latency_) <= cycle_count()) {
       RamRequest<T> ram_req = read_queue_.front();
       read_queue_.pop();
@@ -71,6 +101,8 @@ void Ram<T>::NextClockCycle() {
       read_data_ = data_[ram_req.address];
     }
   }
+  
+  // Assume separate write port
   if(!write_queue_.empty()) {
     if((write_queue_.front().age + latency_) <= cycle_count()) {
       RamRequest<T> ram_req = write_queue_.front();
@@ -106,6 +138,7 @@ void Ram<T>::WriteRequest(uint64_t address, T data)
 template <typename T>
 void Ram<T>::ReadRequest(uint64_t address)
 {
+  assert(address < pow(2, addr_bank_width_ + addr_row_width_ + addr_col_width_));
   RamRequest<T> ram_req;
   ram_req.address = address;
   ram_req.age = cycle_count();
