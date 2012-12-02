@@ -13,6 +13,7 @@
 #include "input_reader.h"
 #include <assert.h>
 #include <list>
+#include <stdlib.h>
 
 int main (int argc, char** argv) {
   if (argc < 3) {

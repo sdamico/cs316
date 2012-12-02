@@ -12,25 +12,32 @@
 
 #define NUM_RAMS 8
 #define RAM_ADDRESS_WIDTH 8
+#define RAM_ADDRESS_WIDTH_PTC 16
 #define RAM_LATENCY 2
 
 InputReader* input_reader;
 RamModule<uint32_t>* interval_table_ram;
 IntervalTableCtrl** itcs;
+RamModule<uint32_t>* position_table_ram;
 PositionTableCtrl** ptcs;
+
 unsigned int num_itcs;
+unsigned int num_ptcs;
 
 void Clock() {
   input_reader->NextClockCycle();
   interval_table_ram->NextClockCycle();
+  for (unsigned int i = 0; i < num_ptcs; i++) {
+    ptcs[i]->NextClockCycle();
+  }
   for (unsigned int i = 0; i < num_itcs; i++) {
     itcs[i]->NextClockCycle();
   }
 }
 
 int main (int argc, char** argv) {
-  if (argc < 3) {
-    std::cout << "Usage: " << argv[0] << " <Subread Filename> <Interval Table Filename>" << std::endl;
+  if (argc < 4) {
+    std::cout << "Usage: " << argv[0] << " <Subread Filename> <Interval Table Filename> <Position Table Filename>" << std::endl;
     exit(1);
   }
   
@@ -44,6 +51,7 @@ int main (int argc, char** argv) {
   subread_file.read((char *) (&num_subreads_per_read), sizeof(unsigned int ));
   subread_file.read((char *) (&subread_length), sizeof(unsigned int ));
   num_itcs = num_subreads_per_read * 2;
+	num_ptcs = num_itcs;
   unsigned int num_parallel_reads = num_itcs / num_subreads_per_read;
   
   // Store the subreads into lists to be used later
@@ -96,6 +104,45 @@ int main (int argc, char** argv) {
   }
   interval_table_ram = new RamModule<uint32_t>(NUM_RAMS, num_itcs, RAM_ADDRESS_WIDTH, RAM_LATENCY);
   interval_table_ram->Preload(interval_table_ram_array, interval_table_ram_size, false);
+
+  // Build the position table
+  unsigned int position_table_size;
+  std::ifstream position_table_file;
+  position_table_file.open(argv[3]);
+  position_table_file.read((char *)(&position_table_size), sizeof(unsigned int));
+  uint32_t* position_table = new uint32_t[position_table_size];
+  position_table_file.read((char *)position_table, position_table_size * sizeof(uint32_t));
+  position_table_file.close();
+
+  // Build the RAM module preload array
+  unsigned int position_table_ram_size = NUM_RAMS * pow(2, RAM_ADDRESS_WIDTH_PTC);
+  uint32_t* position_table_ram_array = new uint32_t[position_table_ram_size];
+  for (unsigned int i = 0; i < position_table_ram_size; i++) {
+    position_table_ram_array[i] = 0;
+  }
+  unsigned int* ram_num_elem_ptc = new unsigned int[NUM_RAMS];
+  for (unsigned int i = 0; i < NUM_RAMS; i++) {
+    ram_num_elem_ptc[i] = position_table_size / NUM_RAMS;
+  }
+  for (unsigned int i = 0; i < position_table_size % NUM_RAMS; i++) {
+    ram_num_elem_ptc[i]++;
+  }
+  ram_id = 0;
+  ram_addr = 0;
+  for (unsigned int i = 0; i < position_table_size; i++) {
+    position_table_ram_array[(ram_id << RAM_ADDRESS_WIDTH_PTC) + ram_addr] = interval_table[i];
+    if (ram_addr == ram_num_elem_ptc[ram_id] - 1) {
+      ram_id++;
+      ram_addr = 0;
+    } else {
+      ram_addr++;
+    }
+  }
+  position_table_ram = new RamModule<uint32_t>(NUM_RAMS, num_ptcs, RAM_ADDRESS_WIDTH_PTC, RAM_LATENCY);
+  position_table_ram->Preload(position_table_ram_array, position_table_ram_size, false);
+
+  
+  // Instantiate test position table controllers
   
   // Instantiate interval table controllers
   itcs = new IntervalTableCtrl*[num_itcs];
@@ -103,27 +150,33 @@ int main (int argc, char** argv) {
     itcs[i] = new IntervalTableCtrl(i, input_reader, interval_table_ram, interval_table_size);
   }
   
+	ptcs = new PositionTableCtrl*[num_ptcs];
+	for (unsigned int i = 0; i < num_ptcs; i++) {
+		ptcs[i] = new PositionTableCtrl(i, itcs[i], position_table_ram, position_table_size);
+	}
+
   uint64_t* read_counters = new uint64_t[num_itcs];
   for (unsigned int i = 0; i < num_itcs; i++) {
     read_counters[i] = 0;
   }
   uint64_t start_cycle = input_reader->cycle_count();
   while (!input_reader->Done()) {
-    for (unsigned int i = 0; i < num_itcs; i++) {
-      if (itcs[i]->IntervalReady() == true) {
-        SubReadInterval sri = itcs[i]->IntervalData();
+    for (unsigned int i = 0; i < num_ptcs; i++) {
+      if (ptcs[i]->PositionReady() == true) {
+        PositionTableResult ptr = ptcs[i]->PositionData();
         
         // Check subread information
-        assert(sri.sr.read_id == read_counters[i] * num_parallel_reads + i / num_subreads_per_read);
-        assert(sri.sr.subread_offset == i % num_subreads_per_read);
-        assert(sri.sr.length == subread_length);
-        assert(sri.sr.data == subread_list[i].front());
+        /*assert(ptr.sr.read_id == read_counters[i] * num_parallel_reads + i / num_subreads_per_read);
+        assert(ptr.sr.subread_offset == i % num_subreads_per_read);
+        assert(ptr.sr.length == subread_length);
+        assert(ptr.sr.data == subread_list[i].front());*/
+				std::cout<<"read id: "<<ptr.sr.read_id<<", offset: "<<ptr.sr.subread_offset<<", position: "<<ptr.position<<", last: "<<ptr.last;
         subread_list[i].pop();
         read_counters[i]++;
         
         // Check interval information
-        assert(sri.interval.start == interval_table[sri.sr.data]);
-        assert(sri.interval.length == interval_table[sri.sr.data + 1] - interval_table[sri.sr.data]);
+        //assert(sri.interval.start == interval_table[sri.sr.data]);
+        //assert(sri.interval.length == interval_table[sri.sr.data + 1] - interval_table[sri.sr.data]);
       }
     }
     Clock();

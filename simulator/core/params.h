@@ -16,4 +16,7 @@
 // interval_table_ctrl.h
 #define INTERVAL_TABLE_CTRL_FIFO_LENGTH 16
 
+// position_table_ctrl.h
+#define POSITION_TABLE_CTRL_FIFO_LENGTH 16
+
 #endif // CS316_CORE_PARAMS_H_
