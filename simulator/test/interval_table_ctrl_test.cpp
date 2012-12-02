@@ -108,7 +108,9 @@ int main (int argc, char** argv) {
     read_counters[i] = 0;
   }
   uint64_t start_cycle = input_reader->cycle_count();
-  while (!input_reader->Done()) {
+  bool done = false;
+  do {
+    done = input_reader->Done();
     for (unsigned int i = 0; i < num_itcs; i++) {
       if (itcs[i]->IntervalReady() == true) {
         SubReadInterval sri = itcs[i]->IntervalData();
@@ -124,8 +126,10 @@ int main (int argc, char** argv) {
         // Check interval information
         assert(sri.interval.start == interval_table[sri.sr.data]);
         assert(sri.interval.length == interval_table[sri.sr.data + 1] - interval_table[sri.sr.data]);
+        
+        done = !(!done || !(itcs[i]->IsIdle()));
       }
-    }
+    } while (!done);
     Clock();
   }
   

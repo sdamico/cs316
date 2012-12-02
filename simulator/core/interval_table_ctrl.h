@@ -38,8 +38,13 @@ class IntervalTableCtrl : public Sequential {
   // Gets the next ready interval
   SubReadInterval IntervalData();
   
+  // Check if no work currently in the pipeline
+  bool IsIdle();
+  
   void NextClockCycle();
+  
   void Reset();
+  
  private:
   // Compute the number of interval table elements for each ram.
   void ComputeRamNumElem(unsigned int interval_table_size);
@@ -108,6 +113,14 @@ SubReadInterval IntervalTableCtrl::IntervalData() {
   SubReadInterval sri = output_fifo_->read_data();
   output_fifo_->ReadRequest();
   return sri;
+}
+
+bool IntervalTableCtrl::IsIdle() {
+  if (interval_table_ram_fifo_->IsEmpty() && output_fifo_->IsEmpty()) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 void IntervalTableCtrl::NextClockCycle() {
