@@ -16,7 +16,6 @@
 
 #include <stdint.h>
 #include "sequential.h"
-#include "position_table_ctrl.h"
 #include "fifo.h"
 #include "params.h"
 #include "def.h"
@@ -30,8 +29,7 @@
 class IntervalTableCtrl : public Sequential {
  public:
   IntervalTableCtrl(uint64_t itc_id, InputReader* input_reader,
-                    RamModule<uint32_t>* interval_table_ram, PositionTableCtrl* ptc,
-                    unsigned int interval_table_size);
+                    RamModule<uint32_t>* interval_table_ram, unsigned int interval_table_size);
   ~IntervalTableCtrl();
   
   // Checks if an interval is ready for the PTC
@@ -60,9 +58,6 @@ class IntervalTableCtrl : public Sequential {
   // Pointer to the input reader from which to get subread work units.
   InputReader* input_reader_;
   
-  // Pointer to the attached pointer table controller.
-  PositionTableCtrl* ptc_;
-  
   // FIFO containing outstanding interval table ram read requests.
   Fifo<SubRead>* interval_table_ram_fifo_;
   
@@ -90,11 +85,10 @@ class IntervalTableCtrl : public Sequential {
 
 IntervalTableCtrl::IntervalTableCtrl(uint64_t itc_id, InputReader* input_reader,
                                      RamModule<uint32_t>* interval_table_ram,
-                                     PositionTableCtrl* ptc, unsigned int interval_table_size) {
+                                     unsigned int interval_table_size) {
   itc_id_ = itc_id;
   input_reader_ = input_reader;
   interval_table_ram_ = interval_table_ram;
-  ptc_ = ptc;
   interval_table_ram_fifo_ = new Fifo<SubRead>(INTERVAL_TABLE_CTRL_FIFO_LENGTH);
   first_lookup_request_ = true;
   first_lookup_read_ = true;
