@@ -206,6 +206,6 @@ int main (int argc, char** argv) {
   for (unsigned int i = 0; i < NUM_RAMS; i++) {
     std::cout<<"RAM "<<i<<": "<<interval_table_ram->GetAccessCount(i)<<std::endl;
   }
-  std::cout << "Interval Table Controller tests complete!" << std::endl;
+  std::cout << "Position Table Controller tests complete!" << std::endl;
   return 0;
 }
