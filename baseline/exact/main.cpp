@@ -14,7 +14,7 @@ void merge (std::vector<unsigned int>* vec1, std::vector<unsigned int>* vec2, st
   unsigned int ptr1 = 0;
   unsigned int ptr2 = 0;
   
-  while ((*vec2)[ptr2] < offset) {
+  while (ptr2 < vec2->size() && (*vec2)[ptr2] < offset) {
     ptr2++;
   }
   while ((ptr1 < vec1->size()) && (ptr2 < vec2->size())) {
