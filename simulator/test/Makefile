@@ -2,7 +2,7 @@ CC=g++
 CFLAGS = -g -Wall
 CORE_DIR = ../core
 
-all: fifo ram ram_module input_reader interval_table_ctrl position_table_ctrl
+all: fifo ram ram_module input_reader interval_table_ctrl position_table_ctrl stitcher
 
 fifo: fifo_test.o
 	mkdir -p bin/
@@ -45,6 +45,13 @@ interval_table_ctrl_test.o: interval_table_ctrl_test.cpp
 
 position_table_ctrl_test.o: interval_table_ctrl_test.cpp
 	$(CC) $(CFLAGS) -c position_table_ctrl_test.cpp -I $(CORE_DIR)
+
+stitcher: stitcher_test.o
+	mkdir -p bin/
+	$(CC) $(CFLAGS) stitcher_test.o -o bin/stitcher_test
+
+stitcher_test.o: stitcher_test.cpp ../core/stitcher.h
+	$(CC) $(CFLAGS) -c stitcher_test.cpp -I $(CORE_DIR)
 
 clean:
 	rm -rf *.o bin

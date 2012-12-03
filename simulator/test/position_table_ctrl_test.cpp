@@ -11,8 +11,8 @@
 #include <stdlib.h>
 
 #define NUM_RAMS 8
-#define RAM_ADDRESS_WIDTH 8
-#define RAM_ADDRESS_WIDTH_PTC 8
+#define RAM_ADDRESS_WIDTH 20
+#define RAM_ADDRESS_WIDTH_PTC 21
 #define RAM_LATENCY 2
 
 InputReader* input_reader;
@@ -53,7 +53,6 @@ int main (int argc, char** argv) {
   subread_file.read((char *) (&subread_length), sizeof(unsigned int ));
   num_itcs = num_subreads_per_read * 2;
 	num_ptcs = num_itcs;
-  unsigned int num_parallel_reads = num_itcs / num_subreads_per_read;
   
   // Store the subreads into lists to be used later
   std::queue<uint64_t>* subread_list = new std::queue<uint64_t>[num_itcs];
@@ -173,6 +172,7 @@ int main (int argc, char** argv) {
     for (unsigned int i = 0; i < num_ptcs; i++) {
       if (ptcs[i]->PositionReady() == true) {
         PositionTableResult ptr = ptcs[i]->PositionData();
+        ptcs[i]->ReadRequest();
          
         // Check subread information
 
@@ -187,7 +187,13 @@ int main (int argc, char** argv) {
         std::cout<<"predicted interval: "<<interval_table[ptr.sr.data]<<std::endl;
 				std::cout<<"predicted position: "<<position_table[interval_table[ptr.sr.data] + ptc_offsets[i]]<<std::endl;
         std::cout<<"position: "<<ptr.position<<std::endl;*/
-				assert(ptr.position == position_table[interval_table[ptr.sr.data] + ptc_offsets[i]]);
+				if (!(ptr.empty)) {
+          //std::cout<<ptr.position<<" "<<position_table[interval_table[ptr.sr.data] + ptc_offsets[i]]<<std::endl;
+          while (position_table[interval_table[ptr.sr.data] + ptc_offsets[i]] < ptr.sr.length * ptr.sr.subread_offset) {
+            ptc_offsets[i]++;
+          }
+          assert(ptr.position == position_table[interval_table[ptr.sr.data] + ptc_offsets[i]]);
+        }
 				assert(ptc_offsets[i] < (interval_table[ptr.sr.data+1] - interval_table[ptr.sr.data]));
         //assert(sri.interval.length == interval_table[sri.sr.data + 1] - interval_table[sri.sr.data]);
 				if(ptr.last) {

@@ -22,9 +22,8 @@ class PositionTableCtrl : public Sequential {
   void Reset();
 	bool PositionReady();
 	PositionTableResult PositionData();
+  void ReadRequest();
   
-  // Position Table Controller interface function stubs
-    
  private:
 	// Compute number of position table elements for each ram
 	void ComputeRamNumElem(unsigned int position_table_size);
@@ -86,7 +85,6 @@ PositionTableCtrl::~PositionTableCtrl() {
 
 void PositionTableCtrl::NextClockCycle() {
 	Sequential::NextClockCycle();
-
   if (itc_->IntervalReady() &&
       position_table_ram_fifo_->Size() + output_fifo_->Size() < POSITION_TABLE_CTRL_FIFO_LENGTH &&
       position_table_ram_->IsPortReady(ptc_id_) == true &&
@@ -96,8 +94,8 @@ void PositionTableCtrl::NextClockCycle() {
     position_table_ram_fifo_->WriteRequest(sri_);
 		if(sri_.interval.length > 0) {
     	position_table_ram_->ReadRequest(GetRamAddress(sri_.interval.start), ptc_id_);
+      sri_offset_ = (sri_offset_ + 1) % sri_.interval.length;
 		}
-   	sri_offset_ = (sri_offset_ + 1) % sri_.interval.length;
   }  
   else if (position_table_ram_fifo_->Size() + output_fifo_->Size() < POSITION_TABLE_CTRL_FIFO_LENGTH && sri_offset_ > 0 && position_table_ram_->IsPortReady(ptc_id_) == true) {
     position_table_ram_fifo_->WriteRequest(sri_);		
@@ -135,17 +133,30 @@ void PositionTableCtrl::NextClockCycle() {
 			output_position_index_++;
 		}
 
-    PositionTableResult ptr;
-	  ptr.sr = sri.sr;
-	  ptr.position = position;
-		ptr.last = last_position;
-		ptr.empty = false;
-/*		std::cout<<"out "<<ptc_id_<<" read id: "<<ptr.sr.read_id<<std::endl;
-		std::cout<<"out "<<ptc_id_<<" read offset: "<<ptr.sr.subread_offset<<std::endl;
+    // Send position if valid (i.e. positive position-offset)
+    if (sri.sr.length * sri.sr.subread_offset <= position) {
+      PositionTableResult ptr;
+      ptr.sr = sri.sr;
+      ptr.position = position;
+      ptr.last = last_position;
+      ptr.empty = false;
+  /*		std::cout<<"out "<<ptc_id_<<" read id: "<<ptr.sr.read_id<<std::endl;
+      std::cout<<"out "<<ptc_id_<<" read offset: "<<ptr.sr.subread_offset<<std::endl;
 
-		std::cout<<"out "<<ptc_id_<<" position: "<<ptr.position<<std::endl;
-		std::cout<<"out "<<ptr.last<<std::endl;*/
-		output_fifo_->WriteRequest(ptr);
+      std::cout<<"out "<<ptc_id_<<" position: "<<ptr.position<<std::endl;
+      std::cout<<"out "<<ptr.last<<std::endl;*/
+      output_fifo_->WriteRequest(ptr);
+    } else {
+      // If no valid positions (i.e. positive position-offset), send an empty position
+      if (last_position == true) {
+        PositionTableResult ptr;
+        ptr.sr = sri.sr;
+        ptr.position = 0;
+        ptr.last = true;
+        ptr.empty = true;
+        output_fifo_->WriteRequest(ptr);
+      }
+    }
   }
 
 
@@ -164,8 +175,11 @@ bool PositionTableCtrl::PositionReady() {
 
 PositionTableResult PositionTableCtrl::PositionData() {
   PositionTableResult result = output_fifo_->read_data();
-  output_fifo_->ReadRequest();
   return result;
+}
+
+void PositionTableCtrl::ReadRequest() {
+  output_fifo_->ReadRequest();
 }
 
 void PositionTableCtrl::ComputeRamNumElem(unsigned int position_table_size) {
@@ -187,6 +201,5 @@ uint32_t PositionTableCtrl::GetRamAddress(uint32_t position) {
   }
   return ((ram_id << position_table_ram_->ram_address_width()) + position);
 }
-
 
 #endif // CS316_CORE_POSITION_TABLE_CTRL_H_
