@@ -8,13 +8,13 @@
 #include <assert.h>
 #include <cstdlib>
 #include <ctime>
-#define _BENCHMARK
+#undef _BENCHMARK
 // Merges two sorted lists of positions, given a required offset (vec2 - vec1)
 void merge (std::vector<unsigned int>* vec1, std::vector<unsigned int>* vec2, std::vector<unsigned int>* result, unsigned int offset) {
   unsigned int ptr1 = 0;
   unsigned int ptr2 = 0;
   
-  while ((*vec2)[ptr2] < offset) {
+  while (ptr2 < vec2->size() && (*vec2)[ptr2] < offset) {
     ptr2++;
   }
   while ((ptr1 < vec1->size()) && (ptr2 < vec2->size())) {

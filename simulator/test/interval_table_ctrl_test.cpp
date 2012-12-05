@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include "params.h"
 
+
 InputReader* input_reader;
 RamModule<uint32_t>* interval_table_ram;
 IntervalTableCtrl** itcs;
@@ -70,6 +71,7 @@ int main (int argc, char** argv) {
   // Build the RAM module preload array
   unsigned int interval_table_ram_size = INTERVAL_TABLE_CTRL_NUM_RAMS * pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_WIDTH);
   uint32_t* interval_table_ram_array = new uint32_t[interval_table_ram_size];
+  
   for (unsigned int i = 0; i < interval_table_ram_size; i++) {
     interval_table_ram_array[i] = 0;
   }
@@ -111,7 +113,7 @@ int main (int argc, char** argv) {
   for (unsigned int i = 0; i < num_itcs; i++) {
     itcs[i] = new IntervalTableCtrl(i, input_reader, interval_table_ram, interval_table_size);
   }
-  
+
   uint64_t* read_counters = new uint64_t[num_itcs];
   for (unsigned int i = 0; i < num_itcs; i++) {
     read_counters[i] = 0;

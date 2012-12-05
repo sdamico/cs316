@@ -34,6 +34,13 @@ struct PositionTableResult {
 	SubRead sr;
 	uint64_t position;
 	bool last;
+	bool empty;
+};
+
+// Output result of the stitcher
+struct ReadPosition{
+  uint64_t read_id;
+  uint64_t position;
 };
 
 #endif // CS316_CORE_DEF_H_
