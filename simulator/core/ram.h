@@ -30,6 +30,7 @@ class Ram : public Sequential {
   ~Ram();
   void NextClockCycle();
   void Reset();
+  void DirectWrite(uint64_t address, T data);
   void WriteRequest(uint64_t address, T data);
   void ReadRequest(uint64_t address);
   bool read_ready();
@@ -39,12 +40,9 @@ class Ram : public Sequential {
   std::list<RamRequest<T> > read_queue_;
   std::list<RamRequest<T> > write_queue_;
   T *data_;
-  uint64_t address_width_;
-  uint8_t latency_;
   T read_data_;
-  bool read_ready_;  
+  bool read_ready_;
   
-  // NEW STUFF
   uint64_t addr_row_width_;
   uint64_t addr_col_width_;
   uint64_t addr_bank_width_;
@@ -64,7 +62,6 @@ class Ram : public Sequential {
 
 template <typename T>
 Ram<T>::Ram() {
-  address_width_ = 0;
 }
 
 template <typename T>
@@ -99,9 +96,7 @@ Ram<T>::Ram(uint64_t addr_row_width, uint64_t addr_col_width, uint64_t addr_bank
 
 template <typename T>
 Ram<T>::~Ram() {
-  if (address_width_ > 0) {
-    delete[] data_;
-  }
+  delete[] data_;
   delete[] bank_states_;
 }
 
@@ -165,8 +160,13 @@ void Ram<T>::Reset() {
 }
 
 template <typename T>
-void Ram<T>::WriteRequest(uint64_t address, T data)
-{
+void Ram<T>::DirectWrite(uint64_t address, T data) {
+  assert(address < pow(2, addr_bank_width_ + addr_row_width_ + addr_col_width_));
+  data_[address] = data;
+}
+
+template <typename T>
+void Ram<T>::WriteRequest(uint64_t address, T data) {
   assert(address < pow(2, addr_bank_width_ + addr_row_width_ + addr_col_width_)); 
   RamRequest<T> ram_req;
   ram_req.address = address;

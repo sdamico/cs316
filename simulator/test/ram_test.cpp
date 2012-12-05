@@ -15,28 +15,27 @@
 #define MEM_CLK_FREQ 400
 
 int main (int arg, char** argv) {
-//  Ram(uint64_t addr_row_width, uint64_t addr_col_width, uint64_t addr_bank_width, 
-//    uint64_t system_clock_freq_mhz, uint64_t memory_clock_freq_mhz,
-//    uint64_t tRCD_cycles, uint64_t tCL_cycles, uint64_t tRP_cycles);
-  Ram<int> r(ADDR_ROW_WIDTH, ADDR_COL_WIDTH, ADDR_BANK_WIDTH,
+  Ram<uint64_t> r(ADDR_ROW_WIDTH, ADDR_COL_WIDTH, ADDR_BANK_WIDTH,
               SYSTEM_CLK_FREQ, MEM_CLK_FREQ,
               TRCD, TCL, TRP);
   
   // Check initial states
   assert(r.read_ready() == false);
   
-  // Read after Write Test
-  for (int i = 0; i < pow(2, ADDRESS_WIDTH); i++) {
+  // Fill RAM with data
+  for (unsigned int i = 0; i < pow(2, ADDRESS_WIDTH); i++) {
     r.WriteRequest(i, i);
     r.NextClockCycle();
   }    
-  for (int i = 0; i < (TRCD+TCL+TRP)*pow(2, ADDRESS_WIDTH)*10; i++) {
+  for (unsigned int i = 0; i < (TRCD+TCL+TRP)*pow(2, ADDRESS_WIDTH)*10; i++) {
     r.NextClockCycle();
   }
+  
+  // Full read test interleaving bank requests
   int start_cycle = r.cycle_count();
   assert(r.read_ready() == false);
-  for (int col = 0; col < pow(2, ADDR_COL_WIDTH); col++) {
-    for (int row = 0; row < pow(2, ADDR_ROW_WIDTH); row++) {
+  for (int row = 0; row < pow(2, ADDR_ROW_WIDTH); row++) {
+    for (int col = 0; col < pow(2, ADDR_COL_WIDTH); col++) {
       for (int bank = 0; bank < pow(2, ADDR_BANK_WIDTH); bank++) {
         uint64_t address = (bank << (ADDR_ROW_WIDTH+ADDR_COL_WIDTH)) | (row << (ADDR_COL_WIDTH)) | col;
         r.ReadRequest(address);
@@ -47,6 +46,7 @@ int main (int arg, char** argv) {
       }
     }  
   }
+  std::cout << "Full read test (" << pow(2, ADDRESS_WIDTH) << " reads) took " << r.cycle_count() - start_cycle << " cycles" << std::endl;
   
   //same row, same bank
   r.Reset();
@@ -200,9 +200,9 @@ int main (int arg, char** argv) {
     r.NextClockCycle();          
   } while (r.read_ready() == false);
 
-  int expected = Ram<int>::BURST_LENGTH/2;
-  int expected1 = TRCD + TCL + TRP - Ram<int>::BURST_LENGTH/2*2;
-  if ( expected1 > Ram<int>::BURST_LENGTH/2) {
+  uint64_t expected = Ram<uint64_t>::BURST_LENGTH/2;
+  uint64_t expected1 = TRCD + TCL + TRP - Ram<uint64_t>::BURST_LENGTH/2*2;
+  if ( expected1 > Ram<uint64_t>::BURST_LENGTH/2) {
     expected = expected1;
   }
   assert (r.cycle_count() - start_cycle == expected);
@@ -210,7 +210,7 @@ int main (int arg, char** argv) {
 
   // halving system clock frequency
 
-  Ram<int> r2(ADDR_ROW_WIDTH, ADDR_COL_WIDTH, ADDR_BANK_WIDTH,
+  Ram<uint64_t> r2(ADDR_ROW_WIDTH, ADDR_COL_WIDTH, ADDR_BANK_WIDTH,
               SYSTEM_CLK_FREQ/2, MEM_CLK_FREQ,
               TRCD, TCL, TRP);
   
@@ -218,11 +218,11 @@ int main (int arg, char** argv) {
   assert(r2.read_ready() == false);
   
   // Read after Write Test
-  for (int i = 0; i < pow(2, ADDRESS_WIDTH); i++) {
+  for (unsigned int i = 0; i < pow(2, ADDRESS_WIDTH); i++) {
     r2.WriteRequest(i, i);
     r2.NextClockCycle();
   }    
-  for (int i = 0; i < (TRCD+TCL+TRP)*pow(2, ADDRESS_WIDTH)*10; i++) {
+  for (unsigned int i = 0; i < (TRCD+TCL+TRP)*pow(2, ADDRESS_WIDTH)*10; i++) {
     r2.NextClockCycle();
   }
   start_cycle = r2.cycle_count();

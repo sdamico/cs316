@@ -25,6 +25,9 @@
 //     Albert Ng      Nov 22 2012     Added Preload()
 //     Albert Ng      Nov 23 2012     Added access count statistics, num_rams(),
 //                                      ram_address_width()
+//     Albert Ng      Dec 04 2012     Update RAM constructors to use new RAM class with timing
+//                                      parameters
+//                                    Changed Preload() to use DirectWrite()
 
 #ifndef CS316_CORE_RAM_MODULE_H_
 #define CS316_CORE_RAM_MODULE_H_
@@ -35,6 +38,7 @@
 #include "ram.h"
 #include "fifo.h"
 #include <assert.h>
+#include "params.h"
 
 template <typename T>
 struct RamModuleRequest {
@@ -44,13 +48,22 @@ struct RamModuleRequest {
   T write_data;
 };
 
+template <typename T>
+struct PortROBEntry {
+  uint64_t address;
+  T read_data;
+  bool read_ready;
+};
+
 // Simulates a general multi-port, multi-banked RAM with set number of RAMs, number
 // of ports, RAM size, and RAM latency
 template <typename T>
 class RamModule : public Sequential {
  public:
-  RamModule(uint64_t num_rams, uint64_t num_ports, uint64_t ram_address_width,
-            uint8_t ram_latency);
+  RamModule(uint64_t num_rams, uint64_t num_ports, uint64_t addr_row_width,
+            uint64_t addr_col_width, uint64_t addr_bank_width,
+            uint64_t system_clock_freq_mhz, uint64_t memory_clock_freq_mhz,
+            uint64_t tRCD_cycles, uint64_t tCL_cycles, uint64_t tRP_cycles);
   ~RamModule();
   
   // Performs round-robin scheduling of RAM requests and other sequential logic
@@ -69,6 +82,7 @@ class RamModule : public Sequential {
   bool ReadReady(uint64_t port_num);
   
   // Request to write to RAM at a given port.
+  // NOTE: May not work due to variable latencies
   void WriteRequest(uint64_t address, uint64_t port_num, T data);
   
   // Returns the valid data read from the RAM. Asserts to make sure
@@ -84,10 +98,11 @@ class RamModule : public Sequential {
   
   // Parameter accessors
   uint64_t num_rams();
-  uint64_t ram_address_width();
   
-  // Preload the RAMs with given data, with or without interleaving.
-  void Preload(T* data, unsigned int size, bool interleave);
+  uint64_t NumBanks();
+  
+  // Preload the RAMs with given data
+  void Preload(T* data, unsigned int size);
   
   // Get the number of times a RAM has been accessed.
   uint64_t GetAccessCount(uint64_t ram_id);
@@ -105,24 +120,25 @@ class RamModule : public Sequential {
   // RAM Module setup parameters
   uint64_t num_rams_;
   uint64_t num_ports_;
-  uint64_t ram_address_width_;
-  uint8_t ram_latency_;
+  uint64_t addr_row_width_;
+  uint64_t addr_col_width_;
+  uint64_t addr_bank_width_;
   
   // RAM instantiations
   Ram<T>** rams_;
   
   // FIFOs that hold request info for in-flight read requests in each RAM. Used to
-  // pass the read request data to the correct port when data is ready. FIFOs
-  // are each length ram latency.
+  // pass the read request data to the correct port when data is ready.
   Fifo<RamModuleRequest<T> >** ram_inflight_read_request_fifos_;
   
-  // Port Input FIFOs are each length num_ports. This FIFO handles
-  // contentions at the port end between multiple ports requesting access
-  // to the same RAM block, because only one request can be pushed into
-  // a RAM input FIFO per clock. With a length of num_ports, the FIFO can
-  // handle all of the ports requesting access to the same RAM in one burst,
-  // but not continuously.
+  // FIFOs that contain non-dispatched read requests at each port
   Fifo<RamModuleRequest<T> >** port_input_fifos_;
+  
+  // Reorder buffers for each port. These are used to report back read data in order
+  // because reads have variable latency, and can come back out of order.
+  // TODO: Make ROB a class to ensure single push/pop per cycle
+  std::list<PortROBEntry<T> >** port_ROBs_;
+  static const unsigned int ROB_SIZE = RAM_MODULE_PORT_ROB_SIZE;
   
   // Read data ready flags for each port
   bool* read_ready_;
@@ -138,26 +154,34 @@ class RamModule : public Sequential {
 };
 
 template <typename T>
-RamModule<T>::RamModule(uint64_t num_rams, uint64_t num_ports,
-                        uint64_t ram_address_width, uint8_t ram_latency) {
+RamModule<T>::RamModule(uint64_t num_rams, uint64_t num_ports, uint64_t addr_row_width,
+                        uint64_t addr_col_width, uint64_t addr_bank_width,
+                        uint64_t system_clock_freq_mhz, uint64_t memory_clock_freq_mhz,
+                        uint64_t tRCD_cycles, uint64_t tCL_cycles, uint64_t tRP_cycles) {
   num_rams_ = num_rams;
   num_ports_ = num_ports;
-  ram_address_width_ = ram_address_width;
-  ram_latency_ = ram_latency;
+  addr_row_width_ = addr_row_width;
+  addr_col_width_ = addr_col_width;
+  addr_bank_width_ = addr_bank_width;
 
+  // Initialize RAMs and their associated information
   rams_ = new Ram<T>*[num_rams];
   ram_inflight_read_request_fifos_ = new Fifo<RamModuleRequest<T> >*[num_rams];
   port_counters_ = new uint64_t[num_rams];
   for (unsigned int i = 0; i < num_rams; i++) {
-    rams_[i] = new Ram<T>(ram_address_width_, ram_latency_);
-    ram_inflight_read_request_fifos_[i] = new Fifo<RamModuleRequest<T> >(ram_latency_ + 1);
+    rams_[i] = new Ram<T>(addr_row_width, addr_col_width, addr_bank_width, system_clock_freq_mhz, memory_clock_freq_mhz, tRCD_cycles, tCL_cycles, tRP_cycles);
+    ram_inflight_read_request_fifos_[i] = new Fifo<RamModuleRequest<T> >(RAM_MODULE_INFLIGHT_FIFO_LENGTH);
     port_counters_[i] = 0;
   }
+  
+  // Initialize ports and their associated information
   port_input_fifos_ = new Fifo<RamModuleRequest<T> >*[num_ports];
+  port_ROBs_ = new std::list<PortROBEntry<T> >*[num_ports];
   read_ready_ = new bool[num_ports];
   read_data_ = new T[num_ports];
   for (unsigned int i = 0; i < num_ports_; i++) {
-    port_input_fifos_[i] = new Fifo<RamModuleRequest<T> >(num_ports);
+    port_input_fifos_[i] = new Fifo<RamModuleRequest<T> >(RAM_MODULE_PORT_INPUT_FIFO_LENGTH);
+    port_ROBs_[i] = new std::list<PortROBEntry<T> >(RAM_MODULE_PORT_ROB_SIZE);
     read_ready_[i] = false;
   }
   
@@ -173,22 +197,22 @@ RamModule<T>::~RamModule() {
   }
   for (unsigned int i = 0; i < num_ports_; i++) {
     delete port_input_fifos_[i];
+    delete port_ROBs_[i];
   }
-  delete rams_;
-  delete ram_inflight_read_request_fifos_;
-  delete port_counters_;
-  delete port_input_fifos_;
-  delete read_ready_;
-  delete read_data_;
+  delete[] rams_;
+  delete[] ram_inflight_read_request_fifos_;
+  delete[] port_counters_;
+  delete[] port_input_fifos_;
+  delete[] port_ROBs_;
+  delete[] read_ready_;
+  delete[] read_data_;
 }
 
 template <typename T>
 void RamModule<T>::NextClockCycle() {
   Sequential::NextClockCycle();
-  for (unsigned int i = 0; i < num_ports_; i++) {
-    read_ready_[i] = false;
-  }
   
+  // Schedule reads to each RAM
   for (unsigned int i = 0; i < num_rams_; i++) {
     // Loop through ports starting from current port counter and find the
     // first port with an outstanding request to this RAM. If one is found,
@@ -199,21 +223,35 @@ void RamModule<T>::NextClockCycle() {
     // port counter stays the same.
     for (unsigned int j = 0; j < num_ports_; j++) {
       int cur_port = (j + port_counters_[i]) % num_ports_;
-      RamModuleRequest<T> req = port_input_fifos_[cur_port]->read_data();
-      uint64_t ram_id = GetRamID(req.address);
-      uint64_t ram_address = GetRamAddress(req.address);
-      if (!(port_input_fifos_[cur_port]->IsEmpty()) && ram_id == i) {
-        if (req.is_write == false) {
-          rams_[i]->ReadRequest(ram_address);
-          ram_inflight_read_request_fifos_[i]->WriteRequest(req);
-        } else {
-          rams_[i]->WriteRequest(ram_address, req.write_data);
+      if (!(port_input_fifos_[cur_port]->IsEmpty())) {
+        RamModuleRequest<T> req = port_input_fifos_[cur_port]->read_data();
+        uint64_t ram_id = GetRamID(req.address);
+        uint64_t ram_address = GetRamAddress(req.address);
+        if (ram_id == i) {
+          if ((req.is_write == false) && (port_ROBs_[cur_port]->size() < ROB_SIZE)) {
+            // Dispatch read request
+            rams_[i]->ReadRequest(ram_address);
+            ram_inflight_read_request_fifos_[i]->WriteRequest(req);
+            
+            // Allocate ROB entry
+            PortROBEntry<T> probe;
+            probe.address = req.address;
+            probe.read_ready = false;
+            port_ROBs_[cur_port]->push_back(probe);
+            
+            port_input_fifos_[cur_port]->ReadRequest();
+            port_counters_[i] = (cur_port + 1) % num_ports_;
+            access_counts_[i]++;
+          } else if (req.is_write == true) {
+            rams_[i]->WriteRequest(ram_address, req.write_data);
+            
+            port_input_fifos_[cur_port]->ReadRequest();
+            port_counters_[i] = (cur_port + 1) % num_ports_;
+            access_counts_[i]++;
+          }
+
+          break;
         }
-        
-        port_input_fifos_[cur_port]->ReadRequest();
-        port_counters_[i] = (cur_port + 1) % num_ports_;
-        access_counts_[i]++;
-        break;
       }
     }
     
@@ -222,8 +260,33 @@ void RamModule<T>::NextClockCycle() {
     if (rams_[i]->read_ready() == true) {
       RamModuleRequest<T>  req = ram_inflight_read_request_fifos_[i]->read_data();
       ram_inflight_read_request_fifos_[i]->ReadRequest();
-      read_ready_[req.port_num] = true;
-      read_data_[req.port_num] = rams_[i]->read_data();
+      
+      // Search port ROB for the corresponding read request and fill the read data
+      // and ready flag.
+      bool entry_found = false;
+      for (typename std::list<PortROBEntry<T> >::iterator it = port_ROBs_[req.port_num]->begin(); it != port_ROBs_[req.port_num]->end(); it++) {
+        if (((*it).address == req.address) && ((*it).read_ready == false)) {
+          (*it).read_data = rams_[i]->read_data();
+          (*it).read_ready = true;
+          entry_found = true;
+          break;
+        }
+      }
+      assert(entry_found == true);
+    }
+  }
+  
+  // Pop from ROBs when oldest read is ready
+  for (unsigned int i = 0; i < num_ports_; i++) {
+    read_ready_[i] = false;
+    
+    if (!(port_ROBs_[i]->empty())) {
+      PortROBEntry<T> probe = port_ROBs_[i]->front();
+      if (probe.read_ready == true) {
+        read_ready_[i] = true;
+        read_data_[i] = probe.read_data;
+        port_ROBs_[i]->pop_front();
+      }
     }
   }
   
@@ -246,6 +309,7 @@ void RamModule<T>::Reset() {
   for (unsigned int i = 0; i < num_ports_; i++) {
     port_input_fifos_[i]->Reset();
     read_ready_[i] = false;
+    port_ROBs_[i]->clear();
   }
   ResetAccessCounts();
 }
@@ -262,6 +326,7 @@ void RamModule<T>::ReadRequest(uint64_t address, uint64_t port_num) {
   req.port_num = port_num;
   req.is_write = false;
   port_input_fifos_[port_num]->WriteRequest(req);
+  
 }
 
 template <typename T>
@@ -287,17 +352,17 @@ T RamModule<T>::ReadData(uint64_t port_num) {
 
 template <typename T>
 uint64_t RamModule<T>::Size() {
-  return (num_rams_ * ((uint64_t) pow(2, ram_address_width_)));
+  return (num_rams_ * ((uint64_t) pow(2, addr_row_width_ + addr_col_width_ + addr_bank_width_)));
 }
 
 template <typename T>
 uint64_t RamModule<T>::GetRamID(uint64_t address) {
-  return (address >> ram_address_width_);
+  return (address >> (addr_row_width_ + addr_col_width_ + addr_bank_width_));
 }
 
 template <typename T>
 uint64_t RamModule<T>::GetRamAddress(uint64_t address) {
-  return address - (GetRamID(address) << ram_address_width_);
+  return address - (GetRamID(address) << (addr_row_width_ + addr_col_width_ + addr_bank_width_));
 }
 
 template <typename T>
@@ -311,37 +376,24 @@ uint64_t RamModule<T>::num_rams() {
 }
 
 template <typename T>
-uint64_t RamModule<T>::ram_address_width() {
-  return ram_address_width_;
+uint64_t RamModule<T>::NumBanks() {
+  return (uint64_t) (pow(2, addr_bank_width_) * num_rams_);
 }
 
 template <typename T>
-void RamModule<T>::Preload(T* data, unsigned int size, bool interleave) {
-  assert(size <= num_rams_ * pow(2, ram_address_width_));
+void RamModule<T>::Preload(T* data, unsigned int size) {
+  assert(size <= num_rams_ * pow(2, addr_row_width_ + addr_col_width_ + addr_bank_width_));
   
   unsigned int ram_id = 0;
-  unsigned int* ram_addresses = new unsigned int[num_rams_];
-  for (unsigned int i = 0; i < num_rams_; i++) {
-    ram_addresses[i] = 0;
-  }
+  unsigned int ram_address = 0;
   
   for (unsigned int i = 0; i < size; i++) {
-    rams_[ram_id]->WriteRequest(ram_addresses[ram_id], data[i]);
-    rams_[ram_id]->NextClockCycle();
-    if (interleave == false) {
-      if (ram_addresses[ram_id] == (uint64_t) (pow(2, ram_address_width_) - 1)) {
-        ram_id++;
-      } else {
-        ram_addresses[ram_id]++;
-      }
+    rams_[ram_id]->DirectWrite(ram_address, data[i]);
+    if (ram_address == (uint64_t) (pow(2, addr_row_width_ + addr_col_width_ + addr_bank_width_) - 1)) {
+      ram_id++;
+      ram_address = 0;
     } else {
-      ram_addresses[ram_id]++;
-      ram_id = (ram_id + 1) % num_rams_;
-    }
-  }
-  for (unsigned int i = 0; i < ram_latency_; i++) {
-    for (unsigned int j = 0; j < num_rams_; j++) {
-      rams_[j]->NextClockCycle();
+      ram_address++;
     }
   }
 }
