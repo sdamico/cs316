@@ -94,6 +94,8 @@ class RamModule : public Sequential {
   // Parameter accessors
   uint64_t num_rams();
   
+  uint64_t ram_address_width();
+  
   uint64_t NumBanks();
   
   // Preload the RAMs with given data
@@ -363,6 +365,11 @@ uint64_t RamModule<T>::GetRamAddress(uint64_t address) {
 template <typename T>
 uint64_t RamModule<T>::num_rams() {
   return num_rams_;
+}
+
+template <typename T>
+uint64_t RamModule<T>::ram_address_width() {
+  return addr_row_width_ + addr_col_width_ + addr_bank_width_;
 }
 
 template <typename T>

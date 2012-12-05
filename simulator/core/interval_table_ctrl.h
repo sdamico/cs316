@@ -84,8 +84,8 @@ class IntervalTableCtrl : public Sequential {
   // FIFO containing subread and interval information ready to be sent to PTC.
   Fifo<SubReadInterval>* output_fifo_;
   
-  // Number of interval table elements stored in each RAM
-  unsigned int* ram_num_elem_;
+  // Number of interval table elements stored in each RAM and bank
+  unsigned int** ram_bank_num_elem_;
 };
 
 IntervalTableCtrl::IntervalTableCtrl(uint64_t itc_id, InputReader* input_reader,
@@ -185,23 +185,32 @@ void IntervalTableCtrl::Reset() {
 }
 
 void IntervalTableCtrl::ComputeRamNumElem(unsigned int interval_table_size) {
-  unsigned int num_rams = interval_table_ram_->num_rams();
-  ram_num_elem_ = new unsigned int[num_rams];
-  for (unsigned int i = 0; i < num_rams; i++) {
-    ram_num_elem_[i] = interval_table_size / num_rams;
+  ram_bank_num_elem_ = new unsigned int*[INTERVAL_TABLE_CTRL_NUM_RAMS];
+  for (unsigned int i = 0; i < INTERVAL_TABLE_CTRL_NUM_RAMS; i++) {
+    ram_bank_num_elem_[i] = new unsigned int[(int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)];
+    for (unsigned int j = 0; j < pow(2, pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)); j++) {
+      ram_bank_num_elem_[i][j] = interval_table_size / INTERVAL_TABLE_CTRL_NUM_RAMS / ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH));
+    }
   }
-  for (unsigned int i = 0; i < interval_table_size % num_rams; i++) {
-    ram_num_elem_[i]++;
+  for (unsigned int i = 0; i < interval_table_size % (INTERVAL_TABLE_CTRL_NUM_RAMS * ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))); i++) {
+    ram_bank_num_elem_[i / ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))][i % ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))]++;
   }
 }
                                      
 uint64_t IntervalTableCtrl::GetRamAddress(uint64_t subread) {
   unsigned int ram_id = 0;
-  while (subread >= ram_num_elem_[ram_id]) {
-    subread -= ram_num_elem_[ram_id];
-    ram_id++;
+  unsigned int bank_id = 0;
+  while (subread >= ram_bank_num_elem_[ram_id][bank_id]) {
+    subread -= ram_bank_num_elem_[ram_id][bank_id];
+    bank_id++;
+    if (bank_id == pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)) {
+      ram_id++;
+      bank_id = 0;
+    }
   }
-  return ((ram_id << interval_table_ram_->ram_address_width()) + subread);
+  return ((ram_id << INTERVAL_TABLE_CTRL_RAM_ADDR_WIDTH) +
+          (bank_id << (INTERVAL_TABLE_CTRL_RAM_ADDR_ROW_WIDTH + INTERVAL_TABLE_CTRL_RAM_ADDR_COL_WIDTH)) +
+          subread);
 }
 
 #endif // CS316_CORE_INTERVAL_TABLE_CTRL_H_
