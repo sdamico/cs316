@@ -188,7 +188,7 @@ void IntervalTableCtrl::ComputeRamNumElem(unsigned int interval_table_size) {
   ram_bank_num_elem_ = new unsigned int*[INTERVAL_TABLE_CTRL_NUM_RAMS];
   for (unsigned int i = 0; i < INTERVAL_TABLE_CTRL_NUM_RAMS; i++) {
     ram_bank_num_elem_[i] = new unsigned int[(int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)];
-    for (unsigned int j = 0; j < pow(2, pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)); j++) {
+    for (unsigned int j = 0; j < pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH); j++) {
       ram_bank_num_elem_[i][j] = interval_table_size / INTERVAL_TABLE_CTRL_NUM_RAMS / ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH));
     }
   }
