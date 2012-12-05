@@ -24,6 +24,8 @@ class PositionTableCtrl : public Sequential {
 	PositionTableResult PositionData();
   void ReadRequest();
   
+  // Check if no work currently in the pipeline
+  bool IsIdle();
  private:
 	// Compute number of position table elements for each ram
 	void ComputeRamNumElem(unsigned int position_table_size);
@@ -180,6 +182,14 @@ PositionTableResult PositionTableCtrl::PositionData() {
 
 void PositionTableCtrl::ReadRequest() {
   output_fifo_->ReadRequest();
+}
+
+bool PositionTableCtrl::IsIdle() {
+  if (position_table_ram_fifo_->IsEmpty() && output_fifo_->IsEmpty()) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 void PositionTableCtrl::ComputeRamNumElem(unsigned int position_table_size) {
