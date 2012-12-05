@@ -93,8 +93,30 @@ InputReader::InputReader(char* subread_filename, unsigned int num_itcs) {
   subread_file.read((char *) (&num_reads_), sizeof(unsigned int));
   subread_file.read((char *) (&num_subreads_per_read_), sizeof(unsigned int));
   subread_file.read((char *) (&subread_length_), sizeof(unsigned int));
-  uint64_t* subreads = new uint64_t[num_reads_ * num_subreads_per_read_];
-  subread_file.read((char *) subreads, num_reads_ * num_subreads_per_read_ * sizeof(uint64_t));
+  
+  uint64_t* subread_ram_array = 
+    new uint64_t[INPUT_READER_NUM_RAMS * ((int)pow(2, INPUT_READER_RAM_ADDR_WIDTH))];
+  bool done = false;
+  for (unsigned int i = 0; i < pow(2, INPUT_READER_RAM_ADDR_ROW_WIDTH); i++) {
+    for (unsigned int j = 0; j < pow(2, INPUT_READER_RAM_ADDR_COL_WIDTH); j++) {
+      for (unsigned int k = 0; k < pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH); k++) {
+        uint64_t addr = (k << (INPUT_READER_RAM_ADDR_ROW_WIDTH + INPUT_READER_RAM_ADDR_COL_WIDTH)) +
+                        (i << INPUT_READER_RAM_ADDR_COL_WIDTH) + j;
+        if (subread_file.good()) {
+          subread_file.read((char *)(&(subread_ram_array[addr])), sizeof(uint64_t));
+        } else {
+          done = true;
+          break;
+        }
+      }
+      if (done == true) {
+        break;
+      }
+    }
+    if (done == true) {
+      break;
+    }
+  }
   subread_file.close();
 
   // Make sure number of interval table controllers is an integer multiple of
@@ -103,15 +125,18 @@ InputReader::InputReader(char* subread_filename, unsigned int num_itcs) {
   num_itcs_ = num_itcs;
   
   // Make sure there is enough RAM space to store entire workload
-  float num_subreads_per_ram = ceil(((float)(num_reads_ * num_subreads_per_read_)) / INPUT_READER_NUM_RAMS);
-  uint64_t ram_address_width = (uint64_t) ceil(log(num_subreads_per_ram) / log(2));
-  assert(INPUT_READER_RAM_ADDRESS_WIDTH >= ram_address_width);
+  assert(num_reads_ * num_subreads_per_read_ <=
+         pow(2, INPUT_READER_RAM_ADDR_WIDTH));
   
   // Preload Input RAM Module with workload from given subread file
   // Workload is interleaved across RAMs to reduce bank conflicts
-  input_ram_ = new RamModule<uint64_t>(INPUT_READER_NUM_RAMS, num_itcs_,
-                                       INPUT_READER_RAM_ADDRESS_WIDTH, INPUT_READER_RAM_LATENCY);
-  input_ram_->Preload(subreads, num_reads_ * num_subreads_per_read_, true);
+  input_ram_ =
+    new RamModule<uint64_t>(INPUT_READER_NUM_RAMS, num_itcs_,
+                            INPUT_READER_RAM_ADDR_ROW_WIDTH, INPUT_READER_RAM_ADDR_COL_WIDTH,
+                            INPUT_READER_RAM_ADDR_BANK_WIDTH, INPUT_READER_SYSTEM_CLOCK_FREQ_MHZ,
+                            INPUT_READER_MEMORY_CLOCK_FREQ_MHZ, INPUT_READER_RAM_TRCD,
+                            INPUT_READER_RAM_TCL, INPUT_READER_RAM_TRP);
+  input_ram_->Preload(subread_ram_array, num_reads_ * num_subreads_per_read_);
 
   // Initialize workload FIFOs
   subread_fifos_ = new Fifo<SubRead>*[num_itcs_];
@@ -191,14 +216,17 @@ void InputReader::NextClockCycle() {
       
       // Compute next subread address
       unsigned int subread_id = read_counters_[i] * num_itcs_ + i;
-      unsigned int ram_id = subread_id % INPUT_READER_NUM_RAMS;
-      unsigned int ram_offset = subread_id / INPUT_READER_NUM_RAMS;
+      unsigned int bank_id = subread_id % input_ram_->NumBanks();
+      unsigned int ram_id = bank_id / ((unsigned int)(pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH)));
+      unsigned int ram_bank = bank_id % ((unsigned int)(pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH)));
+      unsigned int ram_bank_offset = subread_id / input_ram_->NumBanks();
+      unsigned int address = (ram_id << INPUT_READER_RAM_ADDR_WIDTH) + (ram_bank << (INPUT_READER_RAM_ADDR_ROW_WIDTH + INPUT_READER_RAM_ADDR_COL_WIDTH)) + ram_bank_offset;
 
       // Send requests when entire workload not completed yet
       if (read_id < num_reads_) {
         // Send next read request and record in the read request FIFO.
         ram_read_req_fifos_[i]->WriteRequest(read_id);
-        input_ram_->ReadRequest(ram_id * pow(2, INPUT_READER_RAM_ADDRESS_WIDTH) + ram_offset, i);
+        input_ram_->ReadRequest(address, i);
         read_counters_[i]++;
       } else {
         done_[i] = true;
