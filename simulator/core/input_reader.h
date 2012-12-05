@@ -97,6 +97,7 @@ InputReader::InputReader(char* subread_filename, unsigned int num_itcs) {
   uint64_t* subread_ram_array = 
     new uint64_t[INPUT_READER_NUM_RAMS * ((int)pow(2, INPUT_READER_RAM_ADDR_WIDTH))];
   bool done = false;
+  unsigned int count = 0;
   for (unsigned int row = 0; row < pow(2, INPUT_READER_RAM_ADDR_ROW_WIDTH); row++) {
     for (unsigned int col = 0; col < pow(2, INPUT_READER_RAM_ADDR_COL_WIDTH); col++) {
       for (unsigned int bank = 0; bank < pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH); bank++) {
@@ -105,8 +106,10 @@ InputReader::InputReader(char* subread_filename, unsigned int num_itcs) {
                           (bank << (INPUT_READER_RAM_ADDR_ROW_WIDTH + INPUT_READER_RAM_ADDR_COL_WIDTH)) +
                           (row << INPUT_READER_RAM_ADDR_COL_WIDTH) +
                           col;
-          if (subread_file.good()) {
+          if (count < num_reads_ * num_subreads_per_read_) {
             subread_file.read((char *)(&(subread_ram_array[addr])), sizeof(uint64_t));
+            //std::cout<<subread_ram_array[addr]<<" ";
+            count++;
           } else {
             done = true;
             break;
@@ -140,6 +143,9 @@ InputReader::InputReader(char* subread_filename, unsigned int num_itcs) {
                             INPUT_READER_RAM_ADDR_BANK_WIDTH, INPUT_READER_SYSTEM_CLOCK_FREQ_MHZ,
                             INPUT_READER_MEMORY_CLOCK_FREQ_MHZ, INPUT_READER_RAM_TRCD,
                             INPUT_READER_RAM_TCL, INPUT_READER_RAM_TRP);
+  for (unsigned int i = 0; i < INPUT_READER_NUM_RAMS * ((int)pow(2, INPUT_READER_RAM_ADDR_WIDTH)); i++) {
+    //std::cout<<subread_ram_array[i]<<" ";
+  }
   input_ram_->Preload(subread_ram_array, num_reads_ * num_subreads_per_read_);
 
   // Initialize workload FIFOs
@@ -220,6 +226,15 @@ void InputReader::NextClockCycle() {
       
       // Compute next subread address
       unsigned int subread_id = read_counters_[i] * num_itcs_ + i;
+      /*unsigned int ram_id = subread_id % INPUT_READER_NUM_RAMS;
+      unsigned int bank_id = (subread_id / INPUT_READER_NUM_RAMS) % ((unsigned int) pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH));
+      unsigned int col_id = (subread_id / INPUT_READER_NUM_RAMS / ((unsigned int) pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH))) %
+      ((unsigned int) pow(2, INPUT_READER_RAM_ADDR_COL_WIDTH));
+      unsigned int row_id = (subread_id / INPUT_READER_NUM_RAMS / ((unsigned int) pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH)) /
+                             ((unsigned int) pow(2, INPUT_READER_RAM_ADDR_COL_WIDTH))) % ((unsigned int) pow(2, INPUT_READER_RAM_ADDR_ROW_WIDTH));
+      unsigned int address = (ram_id << INPUT_READER_RAM_ADDR_WIDTH) + (bank_id << (INPUT_READER_RAM_ADDR_ROW_WIDTH + INPUT_READER_RAM_ADDR_COL_WIDTH)) +
+      (row_id << (INPUT_READER_RAM_ADDR_COL_WIDTH)) + col_id;*/
+      
       unsigned int bank_id = subread_id % input_ram_->NumBanks();
       unsigned int ram_id = bank_id / ((unsigned int)(pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH)));
       unsigned int ram_bank = bank_id % ((unsigned int)(pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH)));

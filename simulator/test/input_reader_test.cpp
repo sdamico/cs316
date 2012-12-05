@@ -45,7 +45,8 @@ int main (int argc, char** argv) {
     for (unsigned int i = 0; i < num_itcs; i++) {
       if (ir->SubReadReady(i)) {
         SubRead sr = ir->SubReadRequest(i);
-        assert(sr.data == subread_list[i].front());
+        std::cout<<sr.data <<" "<<subread_list[i].front()<<std::endl;
+        //assert(sr.data == subread_list[i].front());
         subread_list[i].pop();
         num_subreads_read++;
       }
