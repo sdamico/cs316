@@ -185,8 +185,9 @@ int main (int argc, char** argv) {
   
   unsigned int *ptc_offsets = (unsigned int*)calloc(num_ptcs, sizeof(unsigned int));
 
-
-  while (!input_reader->Done()) {
+  bool ptcsNotIdle = true;
+  while (!input_reader->Done() || ptcsNotIdle) {
+    ptcsNotIdle = false;
     for (unsigned int i = 0; i < num_ptcs; i++) {
       if (ptcs[i]->PositionReady() == true) {
         PositionTableResult ptr = ptcs[i]->PositionData();
@@ -208,7 +209,7 @@ int main (int argc, char** argv) {
             ptc_offsets[i]++;
           }
           assert(ptr.position == position_table[interval_table[ptr.sr.data] + ptc_offsets[i]]);
-        }
+	}
         assert(ptc_offsets[i] < (interval_table[ptr.sr.data+1] - interval_table[ptr.sr.data]));
         //assert(sri.interval.length == interval_table[sri.sr.data + 1] - interval_table[sri.sr.data]);
         if(ptr.last) {
@@ -218,6 +219,9 @@ int main (int argc, char** argv) {
         else {
           ptc_offsets[i]++;
         }
+      }
+      if(!ptcs[i]->IsIdle()) {
+        ptcsNotIdle = true;
       }
     }
     Clock();
