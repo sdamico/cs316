@@ -80,30 +80,30 @@ int main (int argc, char** argv) {
   for (unsigned int i = 0; i < interval_table_ram_size; i++) {
     interval_table_ram_array[i] = 0;
   }
-  unsigned int** ram_bank_num_elem = new unsigned int*[INTERVAL_TABLE_CTRL_NUM_RAMS];
+  unsigned int** interval_ram_bank_num_elem = new unsigned int*[INTERVAL_TABLE_CTRL_NUM_RAMS];
   for (unsigned int i = 0; i < INTERVAL_TABLE_CTRL_NUM_RAMS; i++) {
-    ram_bank_num_elem[i] = new unsigned int[(unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)];
+    interval_ram_bank_num_elem[i] = new unsigned int[(unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)];
     for (unsigned int j = 0; j < pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH); j++) {
-      ram_bank_num_elem[i][j] = interval_table_size / INTERVAL_TABLE_CTRL_NUM_RAMS / ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH));
+      interval_ram_bank_num_elem[i][j] = interval_table_size / INTERVAL_TABLE_CTRL_NUM_RAMS / ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH));
     }
   }
   for (unsigned int i = 0; i < interval_table_size % (INTERVAL_TABLE_CTRL_NUM_RAMS * ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))); i++) {
-    ram_bank_num_elem[i / ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))][i % ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))]++;
+    interval_ram_bank_num_elem[i / ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))][i % ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))]++;
   }
-  unsigned int ram_id = 0;
-  unsigned int bank_id = 0;
-  unsigned int ram_addr = 0;
+  unsigned int interval_ram_id = 0;
+  unsigned int interval_bank_id = 0;
+  unsigned int interval_ram_addr = 0;
   for (unsigned int i = 0; i < interval_table_size; i++) {
-    interval_table_ram_array[(ram_id << INTERVAL_TABLE_CTRL_RAM_ADDR_WIDTH) + (bank_id << (INTERVAL_TABLE_CTRL_RAM_ADDR_ROW_WIDTH + INTERVAL_TABLE_CTRL_RAM_ADDR_COL_WIDTH)) + ram_addr] = interval_table[i];
-    if (ram_addr == ram_bank_num_elem[ram_id][bank_id] - 1) {
-      bank_id++;
-      ram_addr = 0;
-      if (bank_id == pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)) {
-        ram_id++;
-        bank_id = 0;
+    interval_table_ram_array[(interval_ram_id << INTERVAL_TABLE_CTRL_RAM_ADDR_WIDTH) + (interval_bank_id << (INTERVAL_TABLE_CTRL_RAM_ADDR_ROW_WIDTH + INTERVAL_TABLE_CTRL_RAM_ADDR_COL_WIDTH)) + interval_ram_addr] = interval_table[i];
+    if (interval_ram_addr == interval_ram_bank_num_elem[interval_ram_id][interval_bank_id] - 1) {
+      interval_bank_id++;
+      interval_ram_addr = 0;
+      if (interval_bank_id == pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)) {
+        interval_ram_id++;
+        interval_bank_id = 0;
       }
     } else {
-      ram_addr++;
+      interval_ram_addr++;
     }
   }
   interval_table_ram = new RamModule<uint32_t>(INTERVAL_TABLE_CTRL_NUM_RAMS, num_itcs, INTERVAL_TABLE_CTRL_RAM_ADDR_ROW_WIDTH,
@@ -127,32 +127,44 @@ int main (int argc, char** argv) {
   position_table_file.close();
  
   // Build the RAM module preload array
-  unsigned int position_table_ram_size = NUM_RAMS * pow(2, RAM_ADDRESS_WIDTH_PTC);
+  unsigned int position_table_ram_size = POSITION_TABLE_CTRL_NUM_RAMS * pow(2, POSITION_TABLE_CTRL_RAM_ADDR_WIDTH);
   uint32_t* position_table_ram_array = new uint32_t[position_table_ram_size];
   for (unsigned int i = 0; i < position_table_ram_size; i++) {
     position_table_ram_array[i] = 0;
   }
-  unsigned int* ram_num_elem_ptc = new unsigned int[NUM_RAMS];
-  for (unsigned int i = 0; i < NUM_RAMS; i++) {
-    ram_num_elem_ptc[i] = position_table_size / NUM_RAMS;
-  }
-  for (unsigned int i = 0; i < position_table_size % NUM_RAMS; i++) {
-    ram_num_elem_ptc[i]++;
-  }
-  ram_id = 0;
-  ram_addr = 0;
-  for (unsigned int i = 0; i < position_table_size; i++) {
-    position_table_ram_array[(ram_id << RAM_ADDRESS_WIDTH_PTC) + ram_addr] = position_table[i];
-    if (ram_addr == ram_num_elem_ptc[ram_id] - 1) {
-      ram_id++;
-      ram_addr = 0;
-    } else {
-      ram_addr++;
+  unsigned int** position_ram_bank_num_elem = new unsigned int*[POSITION_TABLE_CTRL_NUM_RAMS];
+  for (unsigned int i = 0; i < POSITION_TABLE_CTRL_NUM_RAMS; i++) {
+    position_ram_bank_num_elem[i] = new unsigned int[(unsigned int) pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)];
+    for (unsigned int j = 0; j < pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH); j++) {
+      position_ram_bank_num_elem[i][j] = position_table_size / POSITION_TABLE_CTRL_NUM_RAMS / ((unsigned int) pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH));
     }
   }
-  position_table_ram = new RamModule<uint32_t>(NUM_RAMS, num_ptcs, RAM_ADDRESS_WIDTH_PTC, RAM_LATENCY);
-  position_table_ram->Preload(position_table_ram_array, position_table_ram_size, false);
-  
+  for (unsigned int i = 0; i < position_table_size % (POSITION_TABLE_CTRL_NUM_RAMS * ((unsigned int) pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))); i++) {
+    position_ram_bank_num_elem[i / ((unsigned int) pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))][i % ((unsigned int) pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))]++;
+  }
+  unsigned int position_ram_id = 0;
+  unsigned int position_bank_id = 0;
+  unsigned int position_ram_addr = 0;
+  for (unsigned int i = 0; i < position_table_size; i++) {
+    position_table_ram_array[(position_ram_id << POSITION_TABLE_CTRL_RAM_ADDR_WIDTH) + (position_bank_id << (POSITION_TABLE_CTRL_RAM_ADDR_ROW_WIDTH + POSITION_TABLE_CTRL_RAM_ADDR_COL_WIDTH)) + position_ram_addr] = position_table[i];
+    if (position_ram_addr == position_ram_bank_num_elem[position_ram_id][position_bank_id] - 1) {
+      position_bank_id++;
+      position_ram_addr = 0;
+      if (position_bank_id == pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)) {
+        position_ram_id++;
+        position_bank_id = 0;
+      }
+    } else {
+      position_ram_addr++;
+    }
+  }
+  position_table_ram = new RamModule<uint32_t>(POSITION_TABLE_CTRL_NUM_RAMS, num_itcs, POSITION_TABLE_CTRL_RAM_ADDR_ROW_WIDTH,
+                                               POSITION_TABLE_CTRL_RAM_ADDR_COL_WIDTH, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH,
+                                               POSITION_TABLE_CTRL_SYSTEM_CLOCK_FREQ_MHZ, POSITION_TABLE_CTRL_MEMORY_CLOCK_FREQ_MHZ,
+                                               POSITION_TABLE_CTRL_RAM_TRCD, POSITION_TABLE_CTRL_RAM_TCL,
+                                               POSITION_TABLE_CTRL_RAM_TRP);
+  position_table_ram->Preload(position_table_ram_array, position_table_ram_size);
+
   // Instantiate interval table controllers
   itcs = new IntervalTableCtrl*[num_itcs];
   for (unsigned int i = 0; i < num_itcs; i++) {
@@ -212,9 +224,9 @@ int main (int argc, char** argv) {
   }
   
   std::cout << "Test took " << input_reader->cycle_count() - start_cycle << " cycles" << std::endl;
-  for (unsigned int i = 0; i < NUM_RAMS; i++) {
-    std::cout<<"RAM "<<i<<": "<<interval_table_ram->GetAccessCount(i)<<std::endl;
-  }
+  //for (unsigned int i = 0; i < NUM_RAMS; i++) {
+  //  std::cout<<"RAM "<<i<<": "<<interval_table_ram->GetAccessCount(i)<<std::endl;
+  //}
   std::cout << "Position Table Controller tests complete!" << std::endl;
   return 0;
 }
