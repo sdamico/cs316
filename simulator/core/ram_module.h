@@ -181,7 +181,7 @@ RamModule<T>::RamModule(uint64_t num_rams, uint64_t num_ports, uint64_t addr_row
   read_data_ = new T[num_ports];
   for (unsigned int i = 0; i < num_ports_; i++) {
     port_input_fifos_[i] = new Fifo<RamModuleRequest<T> >(RAM_MODULE_PORT_INPUT_FIFO_LENGTH);
-    port_ROBs_[i] = new std::list<PortROBEntry<T> >(RAM_MODULE_PORT_ROB_SIZE);
+    port_ROBs_[i] = new std::list<PortROBEntry<T> >;
     read_ready_[i] = false;
   }
   
@@ -326,7 +326,6 @@ void RamModule<T>::ReadRequest(uint64_t address, uint64_t port_num) {
   req.port_num = port_num;
   req.is_write = false;
   port_input_fifos_[port_num]->WriteRequest(req);
-  
 }
 
 template <typename T>

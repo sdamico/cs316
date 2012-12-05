@@ -97,16 +97,20 @@ InputReader::InputReader(char* subread_filename, unsigned int num_itcs) {
   uint64_t* subread_ram_array = 
     new uint64_t[INPUT_READER_NUM_RAMS * ((int)pow(2, INPUT_READER_RAM_ADDR_WIDTH))];
   bool done = false;
-  for (unsigned int i = 0; i < pow(2, INPUT_READER_RAM_ADDR_ROW_WIDTH); i++) {
-    for (unsigned int j = 0; j < pow(2, INPUT_READER_RAM_ADDR_COL_WIDTH); j++) {
-      for (unsigned int k = 0; k < pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH); k++) {
-        uint64_t addr = (k << (INPUT_READER_RAM_ADDR_ROW_WIDTH + INPUT_READER_RAM_ADDR_COL_WIDTH)) +
-                        (i << INPUT_READER_RAM_ADDR_COL_WIDTH) + j;
-        if (subread_file.good()) {
-          subread_file.read((char *)(&(subread_ram_array[addr])), sizeof(uint64_t));
-        } else {
-          done = true;
-          break;
+  for (unsigned int row = 0; row < pow(2, INPUT_READER_RAM_ADDR_ROW_WIDTH); row++) {
+    for (unsigned int col = 0; col < pow(2, INPUT_READER_RAM_ADDR_COL_WIDTH); col++) {
+      for (unsigned int bank = 0; bank < pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH); bank++) {
+        for (unsigned int ram = 0; ram < INPUT_READER_NUM_RAMS; ram++) {
+          uint64_t addr = (ram << INPUT_READER_RAM_ADDR_WIDTH) +
+                          (bank << (INPUT_READER_RAM_ADDR_ROW_WIDTH + INPUT_READER_RAM_ADDR_COL_WIDTH)) +
+                          (row << INPUT_READER_RAM_ADDR_COL_WIDTH) +
+                          col;
+          if (subread_file.good()) {
+            subread_file.read((char *)(&(subread_ram_array[addr])), sizeof(uint64_t));
+          } else {
+            done = true;
+            break;
+          }
         }
       }
       if (done == true) {
@@ -192,7 +196,7 @@ void InputReader::NextClockCycle() {
   Sequential::NextClockCycle();
   
   unsigned int num_parallel_reads = num_itcs_ / num_subreads_per_read_;
-  
+
   for (unsigned int i = 0; i < num_itcs_; i++) {
     // When subread data is ready from RAM, pop the request off the RAM
     // read request FIFO and write the subread info to the subread FIFO.
@@ -226,7 +230,7 @@ void InputReader::NextClockCycle() {
       if (read_id < num_reads_) {
         // Send next read request and record in the read request FIFO.
         ram_read_req_fifos_[i]->WriteRequest(read_id);
-        input_ram_->ReadRequest(address, i);
+        input_ram_->ReadRequest(address, i);\
         read_counters_[i]++;
       } else {
         done_[i] = true;
