@@ -10,11 +10,7 @@
 #include <stdint.h>
 #include <cmath>
 #include <stdlib.h>
-
-#define NUM_RAMS 8
-#define RAM_ADDRESS_WIDTH 27
-#define RAM_ADDRESS_WIDTH_PTC 21
-#define RAM_LATENCY 2
+#include "params.h"
 
 InputReader* input_reader;
 RamModule<uint32_t>* interval_table_ram;
@@ -76,20 +72,6 @@ int main (int argc, char** argv) {
   }
   subread_file.close();
   
-  
-  // Store the subreads into lists to be used later
-  
-  std::queue<uint64_t>* subread_list = new std::queue<uint64_t>[num_itcs];
-  unsigned int cur_subread = 0;
-  while (cur_subread < num_reads * num_subreads_per_read) {
-    uint64_t subread;
-    unsigned int cur_itc = cur_subread % num_itcs;
-    subread_file.read((char *) (&subread), sizeof(uint64_t));
-    subread_list[cur_itc].push(subread);
-    cur_subread++;
-  }
-  subread_file.close();
-  
   // Instantiate the input reader
   input_reader = new InputReader(argv[1], num_itcs);
   
@@ -104,35 +86,45 @@ int main (int argc, char** argv) {
   interval_table_file.close();
 
   // Build the RAM module preload array
-  unsigned int interval_table_ram_size = NUM_RAMS * pow(2, RAM_ADDRESS_WIDTH);
+  unsigned int interval_table_ram_size = INTERVAL_TABLE_CTRL_NUM_RAMS * pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_WIDTH);
   uint32_t* interval_table_ram_array = new uint32_t[interval_table_ram_size];
   for (unsigned int i = 0; i < interval_table_ram_size; i++) {
     interval_table_ram_array[i] = 0;
   }
-  unsigned int* ram_num_elem = new unsigned int[NUM_RAMS];
-  for (unsigned int i = 0; i < NUM_RAMS; i++) {
-    ram_num_elem[i] = interval_table_size / NUM_RAMS;
-  }
-  for (unsigned int i = 0; i < interval_table_size % NUM_RAMS; i++) {
-    ram_num_elem[i]++;
-  }
-  unsigned int ram_id = 0;
-  unsigned int ram_addr = 0;
-  for (unsigned int i = 0; i < interval_table_size; i++) {
-    interval_table_ram_array[(ram_id << RAM_ADDRESS_WIDTH) + ram_addr] = interval_table[i];
-    if (ram_addr == ram_num_elem[ram_id] - 1) {
-      ram_id++;
-      ram_addr = 0;
-    } else {
-      ram_addr++;
+  unsigned int** interval_ram_bank_num_elem = new unsigned int*[INTERVAL_TABLE_CTRL_NUM_RAMS];
+  for (unsigned int i = 0; i < INTERVAL_TABLE_CTRL_NUM_RAMS; i++) {
+    interval_ram_bank_num_elem[i] = new unsigned int[(unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)];
+    for (unsigned int j = 0; j < pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH); j++) {
+      interval_ram_bank_num_elem[i][j] = interval_table_size / INTERVAL_TABLE_CTRL_NUM_RAMS / ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH));
     }
   }
-
-  interval_table_ram = new RamModule<uint32_t>(NUM_RAMS, num_itcs, RAM_ADDRESS_WIDTH, RAM_LATENCY);
-  interval_table_ram->Preload(interval_table_ram_array, interval_table_ram_size, false);
+  for (unsigned int i = 0; i < interval_table_size % (INTERVAL_TABLE_CTRL_NUM_RAMS * ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))); i++) {
+    interval_ram_bank_num_elem[i / ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))][i % ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))]++;
+  }
+  unsigned int interval_ram_id = 0;
+  unsigned int interval_bank_id = 0;
+  unsigned int interval_ram_addr = 0;
+  for (unsigned int i = 0; i < interval_table_size; i++) {
+    interval_table_ram_array[(interval_ram_id << INTERVAL_TABLE_CTRL_RAM_ADDR_WIDTH) + (interval_bank_id << (INTERVAL_TABLE_CTRL_RAM_ADDR_ROW_WIDTH + INTERVAL_TABLE_CTRL_RAM_ADDR_COL_WIDTH)) + interval_ram_addr] = interval_table[i];
+    if (interval_ram_addr == interval_ram_bank_num_elem[interval_ram_id][interval_bank_id] - 1) {
+      interval_bank_id++;
+      interval_ram_addr = 0;
+      if (interval_bank_id == pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)) {
+        interval_ram_id++;
+        interval_bank_id = 0;
+      }
+    } else {
+      interval_ram_addr++;
+    }
+  }
+  interval_table_ram = new RamModule<uint32_t>(INTERVAL_TABLE_CTRL_NUM_RAMS, num_itcs, INTERVAL_TABLE_CTRL_RAM_ADDR_ROW_WIDTH,
+                                               INTERVAL_TABLE_CTRL_RAM_ADDR_COL_WIDTH, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH,
+                                               INTERVAL_TABLE_CTRL_SYSTEM_CLOCK_FREQ_MHZ, INTERVAL_TABLE_CTRL_MEMORY_CLOCK_FREQ_MHZ,
+                                               INTERVAL_TABLE_CTRL_RAM_TRCD, INTERVAL_TABLE_CTRL_RAM_TCL,
+                                               INTERVAL_TABLE_CTRL_RAM_TRP);
+  interval_table_ram->Preload(interval_table_ram_array, interval_table_ram_size);
 
   // Build the position table
-  std::cout<<"Building position table"<<std::endl;
   unsigned int position_table_size;
   unsigned int ref_seq_length;
   unsigned int seed_length;
@@ -144,33 +136,45 @@ int main (int argc, char** argv) {
   position_table_size = ref_seq_length - seed_length + 1;
   position_table_file.read((char *)(position_table), (ref_seq_length - seed_length + 1) * sizeof(unsigned int));
   position_table_file.close();
- 
+  
   // Build the RAM module preload array
-  unsigned int position_table_ram_size = NUM_RAMS * pow(2, RAM_ADDRESS_WIDTH_PTC);
+  unsigned int position_table_ram_size = POSITION_TABLE_CTRL_NUM_RAMS * pow(2, POSITION_TABLE_CTRL_RAM_ADDR_WIDTH);
   uint32_t* position_table_ram_array = new uint32_t[position_table_ram_size];
   for (unsigned int i = 0; i < position_table_ram_size; i++) {
     position_table_ram_array[i] = 0;
   }
-  unsigned int* ram_num_elem_ptc = new unsigned int[NUM_RAMS];
-  for (unsigned int i = 0; i < NUM_RAMS; i++) {
-    ram_num_elem_ptc[i] = position_table_size / NUM_RAMS;
-  }
-  for (unsigned int i = 0; i < position_table_size % NUM_RAMS; i++) {
-    ram_num_elem_ptc[i]++;
-  }
-  ram_id = 0;
-  ram_addr = 0;
-  for (unsigned int i = 0; i < position_table_size; i++) {
-    position_table_ram_array[(ram_id << RAM_ADDRESS_WIDTH_PTC) + ram_addr] = position_table[i];
-    if (ram_addr == ram_num_elem_ptc[ram_id] - 1) {
-      ram_id++;
-      ram_addr = 0;
-    } else {
-      ram_addr++;
+  unsigned int** position_ram_bank_num_elem = new unsigned int*[POSITION_TABLE_CTRL_NUM_RAMS];
+  for (unsigned int i = 0; i < POSITION_TABLE_CTRL_NUM_RAMS; i++) {
+    position_ram_bank_num_elem[i] = new unsigned int[(unsigned int) pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)];
+    for (unsigned int j = 0; j < pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH); j++) {
+      position_ram_bank_num_elem[i][j] = position_table_size / POSITION_TABLE_CTRL_NUM_RAMS / ((unsigned int) pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH));
     }
   }
-  position_table_ram = new RamModule<uint32_t>(NUM_RAMS, num_ptcs, RAM_ADDRESS_WIDTH_PTC, RAM_LATENCY);
-  position_table_ram->Preload(position_table_ram_array, position_table_ram_size, false);
+  for (unsigned int i = 0; i < position_table_size % (POSITION_TABLE_CTRL_NUM_RAMS * ((unsigned int) pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))); i++) {
+    position_ram_bank_num_elem[i / ((unsigned int) pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))][i % ((unsigned int) pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))]++;
+  }
+  unsigned int position_ram_id = 0;
+  unsigned int position_bank_id = 0;
+  unsigned int position_ram_addr = 0;
+  for (unsigned int i = 0; i < position_table_size; i++) {
+    position_table_ram_array[(position_ram_id << POSITION_TABLE_CTRL_RAM_ADDR_WIDTH) + (position_bank_id << (POSITION_TABLE_CTRL_RAM_ADDR_ROW_WIDTH + POSITION_TABLE_CTRL_RAM_ADDR_COL_WIDTH)) + position_ram_addr] = position_table[i];
+    if (position_ram_addr == position_ram_bank_num_elem[position_ram_id][position_bank_id] - 1) {
+      position_bank_id++;
+      position_ram_addr = 0;
+      if (position_bank_id == pow(2, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH)) {
+        position_ram_id++;
+        position_bank_id = 0;
+      }
+    } else {
+      position_ram_addr++;
+    }
+  }
+  position_table_ram = new RamModule<uint32_t>(POSITION_TABLE_CTRL_NUM_RAMS, num_itcs, POSITION_TABLE_CTRL_RAM_ADDR_ROW_WIDTH,
+                                               POSITION_TABLE_CTRL_RAM_ADDR_COL_WIDTH, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH,
+                                               POSITION_TABLE_CTRL_SYSTEM_CLOCK_FREQ_MHZ, POSITION_TABLE_CTRL_MEMORY_CLOCK_FREQ_MHZ,
+                                               POSITION_TABLE_CTRL_RAM_TRCD, POSITION_TABLE_CTRL_RAM_TCL,
+                                               POSITION_TABLE_CTRL_RAM_TRP);
+  position_table_ram->Preload(position_table_ram_array, position_table_ram_size);
   
   // Read in the results file
   // NOTE: ASSUMES ONE POSITION PER READ
