@@ -87,7 +87,7 @@ int main (int argc, char** argv) {
   unsigned int bank_id = 0;
   unsigned int ram_addr = 0;
   for (unsigned int i = 0; i < interval_table_size; i++) {
-    interval_table_ram_array[(ram_id << INTERVAL_TABLE_CTRL_RAM_ADDR_WIDTH) + (bank_id << INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH) + ram_addr] = interval_table[i];
+    interval_table_ram_array[(ram_id << INTERVAL_TABLE_CTRL_RAM_ADDR_WIDTH) + (bank_id << (INTERVAL_TABLE_CTRL_RAM_ADDR_ROW_WIDTH + INTERVAL_TABLE_CTRL_RAM_ADDR_COL_WIDTH)) + ram_addr] = interval_table[i];
     if (ram_addr == ram_bank_num_elem[ram_id][bank_id] - 1) {
       bank_id++;
       ram_addr = 0;

@@ -196,7 +196,7 @@ void IntervalTableCtrl::ComputeRamNumElem(unsigned int interval_table_size) {
     ram_bank_num_elem_[i / ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))][i % ((unsigned int) pow(2, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH))]++;
   }
 }
-                                     
+
 uint64_t IntervalTableCtrl::GetRamAddress(uint64_t subread) {
   unsigned int ram_id = 0;
   unsigned int bank_id = 0;
