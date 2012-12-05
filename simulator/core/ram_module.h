@@ -12,7 +12,6 @@
 //                     RamModule::WriteRequest()      - Request to write to RAM
 //                     RamModule::ReadData()          - Grab read data at a port
 //                     RamModule::Size()              - Get the total size of the RAM module
-//                     RamModule::rams()              - Directly access RAMs, used for testing
 //                     RamModule::num_rams()          - Accessor for number of RAMs
 //                     RamModule::ram_address_width() - Accessor for address width of each RAM
 //                     RamModule::Preload()           - Preload the RAM with data
@@ -91,10 +90,6 @@ class RamModule : public Sequential {
   
   // Returns the size of the RAM
   uint64_t Size();
-  
-  // Provides direct access to RAMs. Only used for preloading purposes
-  // TODO(Albert): Make a preload function?
-  Ram<T>** rams();
   
   // Parameter accessors
   uint64_t num_rams();
@@ -228,7 +223,6 @@ void RamModule<T>::NextClockCycle() {
         uint64_t ram_id = GetRamID(req.address);
         uint64_t ram_address = GetRamAddress(req.address);
         if (ram_id == i) {
-          //std::cout<< port_ROBs_[cur_port]->size() << " " << ROB_SIZE <<std::endl;
           if ((req.is_write == false) && (port_ROBs_[cur_port]->size() < ROB_SIZE)) {
             // Dispatch read request
             rams_[i]->ReadRequest(ram_address);
@@ -244,7 +238,6 @@ void RamModule<T>::NextClockCycle() {
             port_counters_[i] = (cur_port + 1) % num_ports_;
             access_counts_[i]++;
             
-            //std::cout<<"Dispatching read request " << req.address << " "<<cur_port<<std::endl;
           } else if (req.is_write == true) {
             rams_[i]->WriteRequest(ram_address, req.write_data);
             
@@ -329,7 +322,6 @@ void RamModule<T>::ReadRequest(uint64_t address, uint64_t port_num) {
   req.port_num = port_num;
   req.is_write = false;
   port_input_fifos_[port_num]->WriteRequest(req);
-  //std::cout<<"Read request " << req.address << " "<<port_num<<std::endl;
 }
 
 template <typename T>
@@ -366,11 +358,6 @@ uint64_t RamModule<T>::GetRamID(uint64_t address) {
 template <typename T>
 uint64_t RamModule<T>::GetRamAddress(uint64_t address) {
   return address - (GetRamID(address) << (addr_row_width_ + addr_col_width_ + addr_bank_width_));
-}
-
-template <typename T>
-Ram<T>** RamModule<T>::rams() {
-  return rams_;
 }
 
 template <typename T>

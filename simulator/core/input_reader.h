@@ -108,7 +108,6 @@ InputReader::InputReader(char* subread_filename, unsigned int num_itcs) {
                           col;
           if (count < num_reads_ * num_subreads_per_read_) {
             subread_file.read((char *)(&(subread_ram_array[addr])), sizeof(uint64_t));
-            //std::cout<<subread_ram_array[addr]<<" ";
             count++;
           } else {
             done = true;
@@ -143,11 +142,9 @@ InputReader::InputReader(char* subread_filename, unsigned int num_itcs) {
                             INPUT_READER_RAM_ADDR_BANK_WIDTH, INPUT_READER_SYSTEM_CLOCK_FREQ_MHZ,
                             INPUT_READER_MEMORY_CLOCK_FREQ_MHZ, INPUT_READER_RAM_TRCD,
                             INPUT_READER_RAM_TCL, INPUT_READER_RAM_TRP);
-  for (unsigned int i = 0; i < INPUT_READER_NUM_RAMS * ((int)pow(2, INPUT_READER_RAM_ADDR_WIDTH)); i++) {
-    //std::cout<<subread_ram_array[i]<<" ";
-  }
-  input_ram_->Preload(subread_ram_array, num_reads_ * num_subreads_per_read_);
+  input_ram_->Preload(subread_ram_array, INPUT_READER_NUM_RAMS * ((int)pow(2, INPUT_READER_RAM_ADDR_WIDTH)));
 
+  
   // Initialize workload FIFOs
   subread_fifos_ = new Fifo<SubRead>*[num_itcs_];
   ram_read_req_fifos_ = new Fifo<uint64_t>*[num_itcs_];
@@ -226,26 +223,26 @@ void InputReader::NextClockCycle() {
       
       // Compute next subread address
       unsigned int subread_id = read_counters_[i] * num_itcs_ + i;
-      /*unsigned int ram_id = subread_id % INPUT_READER_NUM_RAMS;
+      unsigned int ram_id = subread_id % INPUT_READER_NUM_RAMS;
       unsigned int bank_id = (subread_id / INPUT_READER_NUM_RAMS) % ((unsigned int) pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH));
       unsigned int col_id = (subread_id / INPUT_READER_NUM_RAMS / ((unsigned int) pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH))) %
       ((unsigned int) pow(2, INPUT_READER_RAM_ADDR_COL_WIDTH));
       unsigned int row_id = (subread_id / INPUT_READER_NUM_RAMS / ((unsigned int) pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH)) /
                              ((unsigned int) pow(2, INPUT_READER_RAM_ADDR_COL_WIDTH))) % ((unsigned int) pow(2, INPUT_READER_RAM_ADDR_ROW_WIDTH));
       unsigned int address = (ram_id << INPUT_READER_RAM_ADDR_WIDTH) + (bank_id << (INPUT_READER_RAM_ADDR_ROW_WIDTH + INPUT_READER_RAM_ADDR_COL_WIDTH)) +
-      (row_id << (INPUT_READER_RAM_ADDR_COL_WIDTH)) + col_id;*/
+      (row_id << (INPUT_READER_RAM_ADDR_COL_WIDTH)) + col_id;
       
-      unsigned int bank_id = subread_id % input_ram_->NumBanks();
-      unsigned int ram_id = bank_id / ((unsigned int)(pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH)));
-      unsigned int ram_bank = bank_id % ((unsigned int)(pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH)));
-      unsigned int ram_bank_offset = subread_id / input_ram_->NumBanks();
-      unsigned int address = (ram_id << INPUT_READER_RAM_ADDR_WIDTH) + (ram_bank << (INPUT_READER_RAM_ADDR_ROW_WIDTH + INPUT_READER_RAM_ADDR_COL_WIDTH)) + ram_bank_offset;
+//      unsigned int bank_id = subread_id % input_ram_->NumBanks();
+//      unsigned int ram_id = bank_id / ((unsigned int)(pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH)));
+//      unsigned int ram_bank = bank_id % ((unsigned int)(pow(2, INPUT_READER_RAM_ADDR_BANK_WIDTH)));
+//      unsigned int ram_bank_offset = subread_id / input_ram_->NumBanks();
+//      unsigned int address = (ram_id << INPUT_READER_RAM_ADDR_WIDTH) + (ram_bank << (INPUT_READER_RAM_ADDR_ROW_WIDTH + INPUT_READER_RAM_ADDR_COL_WIDTH)) + ram_bank_offset;
 
       // Send requests when entire workload not completed yet
       if (read_id < num_reads_) {
         // Send next read request and record in the read request FIFO.
         ram_read_req_fifos_[i]->WriteRequest(read_id);
-        input_ram_->ReadRequest(address, i);\
+        input_ram_->ReadRequest(address, i);
         read_counters_[i]++;
       } else {
         done_[i] = true;
