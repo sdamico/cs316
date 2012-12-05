@@ -208,7 +208,7 @@ uint32_t PositionTableCtrl::GetRamAddress(uint32_t position) {
   }
   return ((ram_id << POSITION_TABLE_CTRL_RAM_ADDR_WIDTH) +
           (bank_id << (POSITION_TABLE_CTRL_RAM_ADDR_ROW_WIDTH + POSITION_TABLE_CTRL_RAM_ADDR_COL_WIDTH)) +
-          subread);
+          position);
 }
 
 
