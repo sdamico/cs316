@@ -225,7 +225,7 @@ void RamModule<T>::NextClockCycle() {
         uint64_t ram_id = GetRamID(req.address);
         uint64_t ram_address = GetRamAddress(req.address);
         if (ram_id == i) {
-          if ((req.is_write == false) && (port_ROBs_[cur_port]->size() < ROB_SIZE)) {
+          if ((req.is_write == false) && (port_ROBs_[cur_port]->size() < ROB_SIZE) && !(ram_inflight_read_request_fifos_[i]->IsFull())) {
             // Dispatch read request
             rams_[i]->ReadRequest(ram_address);
             ram_inflight_read_request_fifos_[i]->WriteRequest(req);
