@@ -171,8 +171,8 @@ void IntervalTableCtrl::NextClockCycle() {
       sri.sr = sr;
       sri.interval = pti;
       output_fifo_->WriteRequest(sri);
-      std::cout << "cc interval.start interval.length " << cycle_count() << <<" " << sri.interval.start << " " << sri.interval.length << " " << std::endl;
-	  std::cout << "cc sr read_id subread_offset length data " << cycle_count() << <<" " << sri.sr.read_id << " " << sri.sr.subread_offset << " " << " " << sri.sr.length << " " << sri.sr.data << std::endl;
+      std::cout << "cc interval.start interval.length " << cycle_count() << " " << sri.interval.start << " " << sri.interval.length << " " << std::endl;
+	  std::cout << "cc sr read_id subread_offset length data " << cycle_count() << " " << sri.sr.read_id << " " << sri.sr.subread_offset << " " << " " << sri.sr.length << " " << sri.sr.data << std::endl;
       first_lookup_read_ = true;
     }
   }
