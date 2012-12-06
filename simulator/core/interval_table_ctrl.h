@@ -167,10 +167,10 @@ void IntervalTableCtrl::NextClockCycle() {
       PositionTableInterval pti;
       pti.start = first_lookup_data_;
       pti.length = lookup_data - first_lookup_data_;
-      if (pti.length > 100) {
+      /*if (pti.length > 100) {
         pti.length = 0;
         num_skipped_subreads++;
-      }
+      }*/
       SubReadInterval sri;
       sri.sr = sr;
       sri.interval = pti;
