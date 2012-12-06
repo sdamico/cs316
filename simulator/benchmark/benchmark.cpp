@@ -202,7 +202,7 @@ int main (int argc, char** argv) {
         stitchers[i]->ReadRequest();
         results_file << rp.read_id<<'\t'<<rp.position<<std::endl;
         num_results_checked++;
-        if (num_results_checked % 1000 == 0) {
+        if (num_results_checked % 1 == 0) {
           std::cout << num_results_checked << " results " << std::endl;
         }
       }
