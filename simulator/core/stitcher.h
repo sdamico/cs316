@@ -20,6 +20,7 @@ class Stitcher : public Sequential {
   ReadPosition ReadPositionData();
   void ReadRequest();
   
+  bool IsIdle();
  private:
   enum State {
     STITCHING,
@@ -62,6 +63,14 @@ void Stitcher::ReadRequest() {
 void Stitcher::Reset() {
   output_fifo_->Reset();
   state = STITCHING;
+}
+
+bool Stitcher::IsIdle() {
+  if (output_fifo_->IsEmpty()) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 Stitcher::State Stitcher::FlushIteration() {

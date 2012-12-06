@@ -135,7 +135,7 @@ class RamModule : public Sequential {
   // because reads have variable latency, and can come back out of order.
   // TODO: Make ROB a class to ensure single push/pop per cycle
   std::list<PortROBEntry<T> >** port_ROBs_;
-  static const unsigned int ROB_SIZE = RAM_MODULE_PORT_ROB_SIZE;
+  unsigned int ROB_SIZE;
   
   // Read data ready flags for each port
   bool* read_ready_;
@@ -184,6 +184,8 @@ RamModule<T>::RamModule(uint64_t num_rams, uint64_t num_ports, uint64_t addr_row
   
   access_counts_ = new uint64_t[num_rams_];
   ResetAccessCounts();
+  
+  ROB_SIZE = RAM_MODULE_PORT_ROB_SIZE;
 }
 
 template <typename T>
