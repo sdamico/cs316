@@ -37,6 +37,7 @@ uint64_t INTERVAL_TABLE_CTRL_MEMORY_CLOCK_FREQ_MHZ = 400;
 uint64_t INTERVAL_TABLE_CTRL_RAM_TRCD = 8;
 uint64_t INTERVAL_TABLE_CTRL_RAM_TCL = 7;
 uint64_t INTERVAL_TABLE_CTRL_RAM_TRP = 8;
+uint64_t num_skipped_subreads = 0;  // TODO: Make this not global
 
 // position_table_ctrl.h
 #define POSITION_TABLE_CTRL_TOTAL_ADDR_WIDTH 28

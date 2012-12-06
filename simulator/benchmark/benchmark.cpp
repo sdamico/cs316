@@ -221,5 +221,6 @@ int main (int argc, char** argv) {
   results_file.close();
   
   std::cout << "Job took " << input_reader->cycle_count() - start_cycle << " cycles" << std::endl;
+  std::cout << "Skipped " << num_skipped_subreads << " subreads" << std::endl;
   return 0;
 }
