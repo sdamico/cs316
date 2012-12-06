@@ -106,12 +106,20 @@ int main (int argc, char** argv) {
       interval_ram_addr++;
     }
   }
+  for (unsigned int i = 0; i < interval_table_size; i++) {
+    delete interval_table[i];
+  }
+  delete[] interval_table;
   interval_table_ram = new RamModule<uint32_t>(INTERVAL_TABLE_CTRL_NUM_RAMS, num_itcs, INTERVAL_TABLE_CTRL_RAM_ADDR_ROW_WIDTH,
                                                INTERVAL_TABLE_CTRL_RAM_ADDR_COL_WIDTH, INTERVAL_TABLE_CTRL_RAM_ADDR_BANK_WIDTH,
                                                INTERVAL_TABLE_CTRL_SYSTEM_CLOCK_FREQ_MHZ, INTERVAL_TABLE_CTRL_MEMORY_CLOCK_FREQ_MHZ,
                                                INTERVAL_TABLE_CTRL_RAM_TRCD, INTERVAL_TABLE_CTRL_RAM_TCL,
                                                INTERVAL_TABLE_CTRL_RAM_TRP);
   interval_table_ram->Preload(interval_table_ram_array, interval_table_ram_size);
+  for (unsigned int i = 0; i < interval_table_ram_size; i++) {
+    delete interval_table_ram_array[i];
+  }
+  delete[] interval_table_ram_array;
 
   // Build the position table
   std::cout<<"Building the position table"<<std::endl;
@@ -160,12 +168,20 @@ int main (int argc, char** argv) {
       position_ram_addr++;
     }
   }
+  for (unsigned int i = 0; i < position_table_size; i++) {
+    delete position_table[i];
+  }
+  delete[] position_table;
   position_table_ram = new RamModule<uint32_t>(POSITION_TABLE_CTRL_NUM_RAMS, num_itcs, POSITION_TABLE_CTRL_RAM_ADDR_ROW_WIDTH,
                                                POSITION_TABLE_CTRL_RAM_ADDR_COL_WIDTH, POSITION_TABLE_CTRL_RAM_ADDR_BANK_WIDTH,
                                                POSITION_TABLE_CTRL_SYSTEM_CLOCK_FREQ_MHZ, POSITION_TABLE_CTRL_MEMORY_CLOCK_FREQ_MHZ,
                                                POSITION_TABLE_CTRL_RAM_TRCD, POSITION_TABLE_CTRL_RAM_TCL,
                                                POSITION_TABLE_CTRL_RAM_TRP);
   position_table_ram->Preload(position_table_ram_array, position_table_ram_size);
+  for (unsigned int i = 0; i < position_table_ram_size; i++) {
+    delete position_table_ram_array[i];
+  }
+  delete[] position_table_ram_array;
   
   // Instantiate interval table controllers
   std::cout<<"Instantiating ITCs"<<std::endl;
