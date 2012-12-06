@@ -171,7 +171,7 @@ void IntervalTableCtrl::NextClockCycle() {
       sri.sr = sr;
       sri.interval = pti;
       output_fifo_->WriteRequest(sri);
-      
+      std::cout << "cc sr interval.start interval.length" << cycle_count() << " " << sri.sr << " " << sri.interval.start << " " << sri.interval.length << " " << std::endl;
       first_lookup_read_ = true;
     }
   }
