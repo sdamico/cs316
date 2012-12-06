@@ -132,7 +132,7 @@ InputReader::InputReader(char* subread_filename, unsigned int num_itcs) {
   
   // Make sure there is enough RAM space to store entire workload
   assert(num_reads_ * num_subreads_per_read_ <=
-         pow(2, INPUT_READER_RAM_ADDR_WIDTH));
+         pow(2, INPUT_READER_RAM_ADDR_WIDTH) * INPUT_READER_NUM_RAMS);
   
   // Preload Input RAM Module with workload from given subread file
   // Workload is interleaved across RAMs to reduce bank conflicts
