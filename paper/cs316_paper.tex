@@ -167,11 +167,22 @@ The goal of this project is to understand the bottlenecks of these accelerators 
 
 \section{Alignment Algorithm}
 
-The alignment algorithm is based on the premise that we can split a given search query into a set of smaller subreads each of length k. Then, for every possible subread of length k we can store a list of positions in the reference genome where the subread is found. We then flatten this list into an array to create a position table. Because each given subread has a variable number of locations where it is found in the reference genome, we also create another auxiliary interval table which gives us the indices within the position table for that subread. Thus, search is performed by looking up a list of positions for each subread, and then stitching together the common locations between the different subread locations to determine a list of positions for the longer search sequence.
+The alignment algorithm is based on the premise that we can split a given search query into a set of smaller subreads each of length k. Then, for every possible subread of length k we can store a list of positions in the reference genome where the subread is found. We then flatten this list into an array to create a position table. Because each given subread has a variable number of locations where it is found in the reference genome, we also create another auxiliary interval table which gives us the indices within the position table for that subread. Thus, search is performed by looking up a list of positions for each subread, and then stitching together the common locations between the different subread locations to determine a list of positions for the longer search sequence.  This is illustrated in Figure \ref{algorithm}.
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{algorithm.png}
+\caption{}
+\label{algorithm}
+\end{figure}
 
 
-The memory requirements for this algorithm for subreads of length k and a reference genome of length N requires 4k entries in the interval table and N-k+1 entries in the position table. Each entry is an index into the reference genome, and so each entry requires 2Nbits.
-[INSERT FIGURE SHOWING ALIGNMENT ALGORITHM]
+The memory requirements for this algorithm for subreads of length k and a reference genome of length $N$ requires 4k entries in the interval table and $N-k+1$ entries in the position table. Each entry is an index into the reference genome, and so each entry requires $\log_2 N$ bits.  This can be observed in Figure \ref{archprocess}.
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{archprocess.png}
+\caption{}
+\label{archprocess}
+\end{figure}
 
 
 \section{Software Simulation}
@@ -179,7 +190,21 @@ The memory requirements for this algorithm for subreads of length k and a refere
 In order to gain some intuition about the algorithm, we first developed a software implementation and ran it on a machine with a dual quad-core Intel Xeon E5520 @ 2.27GHz and 12 GB RAM for 1,000,000 reads of length 100 (typical for most sequencing hardware) on a reference human chromosome of 225 million nucleotides.
 
 
-As seen in Figure [INSERT FIGURE FOR SPEED VS SEED LENGTH], we notice that the speed decreases sharply as we increase the seed length. This makes sense intuitively - for short subreads, the position table entries are much longer and thus there are both more memory reads required and more computation needed for the stitching algorithm. The following Figure [INSERT HISTOGRAM] helps to illustrate how the average position table entry length varies with seed length. The tradeoff with increasing the seed length, however, is that our interval table size grows exponentially.
+As seen in Figure \ref{speedvsseedlen}, we notice that the speed decreases sharply as we increase the seed length. This makes sense intuitively - for short subreads, the position table entries are much longer and thus there are both more memory reads required and more computation needed for the stitching algorithm. The following Figure \ref{histogram} helps to illustrate how the average position table entry length varies with seed length. The tradeoff with increasing the seed length, however, is that our interval table size grows exponentially.
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{swruntime.png}
+\caption{}
+\label{speedvsseedlen}
+\end{figure}
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{readsvhits.png}
+\caption{Distribution of Hits as a Function of Number of Base Pairs}
+\label{histogram}
+\end{figure}
+
 
 \section{Impact of Compression}
 Understanding that the bottleneck for a hardware implementation is the memory bandwidth, we would like to improve the memory bandwidth utilization.  One way to do this is to compress the position table so that fewer memory accesses are required to read a subread’s position list.  Note that the goal of the compression is to reduce the number of memory accesses to read a full list, not necessarily to minimize the absolute size of the table.  The compressed table must still be locally indexable given a seed.
@@ -197,13 +222,20 @@ We generate compressed position tables for the 225 million base pair human chrom
 
 \section{Hardware Architecture}
 
-The hardware architecture divides the sequencing operation into four main stages.  First, we have an Input Reader to fetch queries from memory.  This module subdivides the queries into shorter subreads before dispatching them to the Interval Table Controller (ITC).  Once they arrive at the ITC, the ITC uses the subread itself as the memory address, and fetches the start of the interval.  It fetches the end of the interval by looking at the immediate next position in memory.  This interval is then sent to the Position Table Controller (PTC), which requests all values in memory through the range of the interval.  Those values are then merged in the Stitcher unit, which takes input from N PTCs (N coincidentally being the number of subreads per input query).
+The hardware architecture, as seen in Figure \ref{arch}, divides the sequencing operation into four main stages.  First, we have an Input Reader to fetch queries from memory.  This module subdivides the queries into shorter subreads before dispatching them to the Interval Table Controller (ITC).  Once they arrive at the ITC, the ITC uses the subread itself as the memory address, and fetches the start of the interval.  It fetches the end of the interval by looking at the immediate next position in memory.  This interval is then sent to the Position Table Controller (PTC), which requests all values in memory through the range of the interval.  Those values are then merged in the Stitcher unit, which takes input from N PTCs (N coincidentally being the number of subreads per input query).
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{architecture.png}
+\caption{}
+\label{arch}
+\end{figure}
+
 
 \subsection{Memory System}
 The hardware architecture includes three primary RAM systems - the Input RAM to hold query sequences, the Interval Table RAM to hold the Interval Table, and the Position Table RAM to hold the Position Table.  Since the input is read sequentially and feeds multiple interval table controllers, we  stripe the data across all RAM chips and access them all in parallel.  For the tables, the memory system has to handle many concurrent accesses, so we developed a memory architecture that could multiplex multiple read ports to a number of individual RAM banks.  Since our access pattern for the ITC is entirely random and determined by the individual input subreads, optimizing our memory for reads substantially shorter than a standard cache line enables us to have other ports reading at the same time instead, provided two ports are not attempting to access the same RAM at the same time.
 
 
-The PTC memory has a similar workload in that the initial address of each request could be anywhere in the memory.  Especially in cases of short subread lengths, however, it can require more than two reads to extract all the positions for a given subread.  As seen by our data in [INSERT SECTION TALKING ABOUT SUBREAD LENGTH PERFORMANCE], we favor a long subread length which means less entries in the PTC on average for a given subread.  To improve RAM bandwidth utilization, we also loaded data into our RAMs in a specific fashion.  By spreading the data evenly across all banks in the memory system, we maximize the potential bandwidth assuming a randomized set of read addresses (which is, in this case, largely correct).  Spreading evenly across RAM chips and their banks enables us to, on average, maximize the number minimize latency by pipelining requests to individual banks.
+The PTC memory has a similar workload in that the initial address of each request could be anywhere in the memory.  Especially in cases of short subread lengths, however, it can require more than two reads to extract all the positions for a given subread.  As seen by our data from our software simulation, we favor a long subread length which means less entries in the PTC on average for a given subread.  To improve RAM bandwidth utilization, we also loaded data into our RAMs in a specific fashion.  By spreading the data evenly across all banks in the memory system, we maximize the potential bandwidth assuming a randomized set of read addresses (which is, in this case, largely correct).  Spreading evenly across RAM chips and their banks enables us to, on average, maximize the number minimize latency by pipelining requests to individual banks.
 
 Since the design features multiple discrete memory chips, values requested from two different RAMs could return out of order.   Our solution, as seen in Figure \ref{rammodel}, was to place a reorder buffer in each read port, that is reserved upon read request and must retire in order.  The request information for each particular RAM was buffered alongside the RAM in a FIFO.  That provides enough information for us to route the output of the RAM to the reorder buffer of the correct port.  
 \begin{figure}[ht!]
