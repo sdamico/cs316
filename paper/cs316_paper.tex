@@ -169,14 +169,14 @@ The alignment algorithm is based on the premise that we can split a given search
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{archprocess.png}
-\caption{}
+\caption{Algorithm Overview}
 \label{archprocess}
 \end{figure}
 
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{algorithm.png}
-\caption{}
+\caption{Data Structure Accesses}
 \label{algorithm}
 \end{figure}
 
@@ -224,13 +224,13 @@ The hardware architecture, as seen in Figure \ref{arch}, divides the sequencing 
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{architecture.png}
-\caption{}
+\caption{Hardware Architecture}
 \label{arch}
 \end{figure}
 
 
 \subsection{Memory System}
-The hardware architecture includes three primary RAM systems - the Input RAM to hold query sequences, the Interval Table RAM to hold the interval Table, and the Position Table RAM to hold the position table.  Since the input is read sequentially and feeds multiple interval table controllers, we  stripe the data across all RAM chips and access them all in parallel.  For the tables, the memory system has to handle many concurrent accesses, so we developed a memory architecture that could multiplex multiple read ports to a number of individual RAM banks.  Since our access pattern for the ITC is entirely random and determined by the individual input subreads, optimizing our memory for reads substantially shorter than a standard cache line enables us to have other ports reading at the same time instead, provided two ports are not attempting to access the same RAM at the same time.
+The hardware architecture includes three primary RAM systems - the input RAM to hold query sequences, the interval table RAM to hold the interval table, and the position table RAM to hold the position table.  Since the input is read sequentially and feeds multiple interval table controllers, we  stripe the data across all RAM chips and access them all in parallel.  For the tables, the memory system has to handle many concurrent accesses, so we developed a memory architecture that could multiplex multiple read ports to a number of individual RAM banks.  Since our access pattern for the ITC is entirely random and determined by the individual input subreads, optimizing our memory for reads substantially shorter than a standard cache line enables us to have other ports reading at the same time instead, provided two ports are not attempting to access the same RAM at the same time.
 
 
 The PTC memory has a similar workload in that the initial address of each request can be anywhere in the memory.  Especially in cases of short subread lengths, however, it can require more than two reads to extract all the positions for a given subread.  As seen by our data from our software simulation, we favor a long subread length which means less entries in the PTC on average for a given subread.  To improve RAM bandwidth utilization, we also load data into our RAMs in a specific fashion.  By spreading the data evenly across all banks in the memory system, we maximize the potential bandwidth assuming a randomized set of read addresses (which is, in this case, largely correct).  Spreading evenly across RAM chips and their banks enables us to maximize bandwidth by pipelining requests to individual banks.
@@ -239,7 +239,7 @@ Since the design features multiple discrete memory chips, values requested from 
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{rammodel.png}
-\caption{}
+\caption{Memory System}
 \label{rammodel}
 \end{figure}
 
@@ -255,7 +255,7 @@ To determine how our architecture performs, we performed a cycle-accurate simula
 \label{utilization}
 \end{figure}
 
-Using our simulator, we determine that the addition of additional processing elements actually has the potential to decrease performance after a certain point.  We compare throughput of the system with the number of stitching units, varying from 1 to 12, with a variety of memory configurations.  In every single case, as we add stitchers past the maximum, the performance degrades.  This is because of additional contention in the memory system as we are already extracting the maximum bandwidth from the memory with fewer processing elements.  A potential way to resolve this issue is to allow out-of-order memory accesses, prioritized by the availability of each RAM chip in the system.  
+The results of our simulation indicate that the addition of processing elements has the potential to decrease performance after a certain point.  We compare throughput of the system with the number of stitching units, varying from 1 to 12, with a variety of memory configurations.  In every single case, as we add stitchers past the maximum, the performance degrades.  This is because of additional contention in the memory system as we are already extracting the maximum bandwidth from the memory with fewer processing elements.  A potential way to resolve this issue is to allow out-of-order memory accesses, prioritized by the availability of each RAM chip in the system.  
 
 \section{Analytical Model}
  
@@ -263,20 +263,20 @@ To estimate the relationship between the number of ITCs, PTCs, stitchers, and RA
  
 Thus, to estimate the bandwidth utilization we can calculate the expected number of memory banks hit per clock cycle, given $B$ total banks and $N$ controllers trying to access them. To do this, define $I_b$ to be the indicator variable for whether bank $b$ was hit by any of the $N$ controllers. Then
 \begin{eqnarray*}
-H&=&\frac{1}{B}E(\sum_{b=1}^{B} I_b)
+H&=&\frac{1}{B}E\left(\sum_{b=1}^{B} I_b\right)
 \end{eqnarray*}
 where $H$ is the expected bandwidth utilization. Following this train of thought, we see:
 \begin{eqnarray*}
 H&=&\frac{1}{B} \sum_{b=1}^{B} E(I_b) \\
 H&=&\frac{1}{B} \sum_{b=1}^{B} P(I_b = 1) \\
-H&=&\frac{1}{B} \sum_{b=1}^{B} (1-(\frac{B-1}{B})^N) \\
-H&=& 1-(\frac{B-1}{B})^N
+H&=&\frac{1}{B} \sum_{b=1}^{B} \left(1-\left(\frac{B-1}{B}\right)^N\right) \\
+H&=& 1-\left(\frac{B-1}{B}\right)^N
 \end{eqnarray*}
 Thus, for a given $H$ we can solve for $N$:
 \begin{eqnarray*}
 N&=&\frac{\log{(1-H)}}{\log{(B-1)}-\log{B}}
 \end{eqnarray*}
-Note that this is a first order approximation - if we were to have too many controllers accessing $B$ banks, then there will be backlog at the banks and bandwidth starts to be adversely affected. As a rule of thumb we saw that setting $H$ close to 85\% kept us from seeing these second order effects. Plotting this for a large range of $B$ shows this can be simplified to saying $N \approx 1.8B$. This provides a good design heuristic for finding a starting point when configuring the hardware system.
+Note that this is a first order approximation - if we were to have too many controllers accessing $B$ banks, then there will be backlog at the banks and bandwidth starts to be adversely affected. As a rule of thumb, we saw that setting $H$ close to 85\% kept us from seeing these second order effects. Plotting this for a large range of $B$ shows this can be simplified to saying $N \approx 1.8B$. This provides a good design heuristic for finding a starting point when configuring the hardware system.
 
 \section{Conclusions}
 
